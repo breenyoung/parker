@@ -248,11 +248,3 @@ async loadSeries() {
 }
 ```
 
-## Downloads
-
-- [series_api_v4.py](computer:///mnt/user-data/outputs/series_api_v4.py)
-- [series_detail_v4.html](computer:///mnt/user-data/outputs/series_detail_v4.html)
-
----
-
-**Fixed! Backend does the heavy lifting!** 🚀

@@ -1,223 +1,252 @@
-# Comic Server Frontend - Integration Package
+# Series Page v5 - Smart Tab Display for Standalone Series
 
-This package contains everything you need to add the Alpine.js-powered frontend to your existing comic server.
+## The Problem
 
-## 📦 What's in This Package
+**Scenario:** You have "Batman: The Killing Joke"
+- 1 volume
+- 1 issue with format="Graphic Novel"
 
+**Old Behavior (v4):**
 ```
-integration_package/
-├── QUICK_START.md          ⭐ START HERE - 5 simple steps
-├── INTEGRATION_GUIDE.md    📖 Detailed integration guide
-├── FILE_STRUCTURE.md       📊 Visual before/after comparison
-│
-├── app_main.py             📝 Your new app/main.py file
-├── root_main.py            📝 Reference for root main.py
-│
-├── templates/              📁 8 HTML files for your app/templates/
-│   ├── base.html
-│   ├── index.html
-│   ├── reader.html
-│   ├── search.html
-│   ├── continue_reading.html
-│   ├── collections.html
-│   ├── reading_lists.html
-│   └── error.html
-│
-├── static/                 📁 CSS and JS for your static/
-│   ├── css/
-│   │   └── style.css
-│   └── js/
-│       └── app.js
-│
-└── docs/                   📚 Additional documentation
-    ├── README.md           Full project README
-    ├── ALPINE_GUIDE.md     How Alpine.js works
-    └── ALPINE_CHANGELOG.md What changed with Alpine.js
+Tabs: [Volumes] [Issues] [Specials] [Related] [Details]
+                  ↑ Empty!  ↑ Has the graphic novel
 ```
 
-## 🚀 Quick Start (5 Steps)
+User clicks "Issues" → Empty!  
+User has to figure out to check "Specials" tab → Confusing UX!
 
-### Your Project Structure
+## The Solution (v5)
+
+**New Behavior:**
 ```
-your-project/
-├── main.py
-├── app/
-│   ├── main.py         ← UPDATE THIS
-│   ├── api/            ← Your existing API
-│   └── templates/      ← ADD HTML FILES HERE
-└── static/             ← ADD CSS/JS HERE
-```
-
-### Steps
-
-1. **Copy Templates** → `app/templates/`
-   ```bash
-   cp templates/*.html /path/to/your-project/app/templates/
-   ```
-
-2. **Copy Static Files** → `static/`
-   ```bash
-   cp static/css/style.css /path/to/your-project/static/css/
-   cp static/js/app.js /path/to/your-project/static/js/
-   ```
-
-3. **Update app/main.py**
-   ```bash
-   cp app_main.py /path/to/your-project/app/main.py
-   ```
-
-4. **Install Dependencies**
-   ```bash
-   pip install jinja2 aiofiles
-   ```
-
-5. **Run It!**
-   ```bash
-   python main.py
-   ```
-
-## 📖 Documentation
-
-- **[QUICK_START.md](./QUICK_START.md)** - 5-step integration checklist
-- **[INTEGRATION_GUIDE.md](./INTEGRATION_GUIDE.md)** - Detailed step-by-step guide
-- **[FILE_STRUCTURE.md](./FILE_STRUCTURE.md)** - Before/after comparison
-- **[docs/ALPINE_GUIDE.md](./docs/ALPINE_GUIDE.md)** - How Alpine.js is used
-- **[docs/README.md](./docs/README.md)** - Full project documentation
-
-## ✨ What You Get
-
-### Features
-- 🏠 Home page with library management
-- 📖 Full-screen comic reader with keyboard navigation
-- 🔍 Advanced search with multiple filters
-- 📊 Reading progress tracking
-- 📚 Collections and reading lists
-- 📱 Mobile-responsive design with animations
-
-### Tech Stack
-- **HTMX** - Server communication
-- **Alpine.js** - Reactive UI components
-- **Tailwind CSS** - Utility-first styling
-- **No build step required!**
-
-## 🎯 Key Files
-
-### app_main.py
-This is your new `app/main.py`. It includes:
-- Static file mounting
-- Template configuration
-- Frontend routes
-- Exception handlers
-- All your existing API routes
-
-**Key paths:**
-```python
-# Templates from app/templates/
-templates = Jinja2Templates(directory=str(BASE_DIR / "app" / "templates"))
-
-# Static files from static/
-app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
+IF no plain issues exist:
+  → Show ALL content in Issues tab
+  → Hide Annuals tab (redundant)
+  → Hide Specials tab (redundant)
+  → Keep Volumes tab (for navigation)
 ```
 
-### Templates (8 files)
-All HTML files use:
-- Alpine.js for reactive components
-- HTMX for server communication
-- Tailwind CSS for styling
-
-### Static Files
-- `style.css` - Custom styles and transitions
-- `app.js` - Utility functions and HTMX event handlers
-
-## ⚙️ Integration Checklist
-
-- [ ] Read QUICK_START.md
-- [ ] Copy templates to `app/templates/`
-- [ ] Copy static files to `static/`
-- [ ] Update `app/main.py`
-- [ ] Install dependencies
-- [ ] Run server
-- [ ] Test http://localhost:8000
-- [ ] Test http://localhost:8000/api/comics/
-- [ ] Verify static files load (F12 → Network tab)
-
-## 🆘 Troubleshooting
-
-### Templates Not Found
-```bash
-# Check files are in correct location
-ls your-project/app/templates/  # Should show 8 HTML files
+**Result:**
+```
+Tabs: [Volumes] [Issues] [Related] [Details]
+                  ↑ Shows the graphic novel here!
 ```
 
-### Static Files 404
-```bash
-# Check files exist
-ls your-project/static/css/style.css
-ls your-project/static/js/app.js
+## How It Works
+
+### Frontend Logic
+
+```javascript
+// Computed property
+get hasPlainIssues() {
+    return this.plainIssues && this.plainIssues.length > 0;
+}
+
+// What to show in Issues tab?
+getIssuesTabContent() {
+    if (this.hasPlainIssues) {
+        // Normal series: just plain issues
+        return this.plainIssues;
+    } else {
+        // Standalone series: everything!
+        return [
+            ...(this.annuals || []),
+            ...(this.specials || [])
+        ];
+    }
+}
 ```
 
-### API Stopped Working
-Make sure `app/main.py` still includes your API routers:
-```python
-app.include_router(comics.router, prefix="/api/comics")
-```
-
-## 🎓 Learn More
-
-### Alpine.js Basics
-Alpine.js makes UI reactive with simple directives:
+### Tab Visibility
 
 ```html
-<div x-data="{ open: false }">
-  <button @click="open = true">Open</button>
-  <div x-show="open">Content</div>
-</div>
+<!-- Annuals tab: only show if hasPlainIssues AND annuals exist -->
+<button x-show="hasPlainIssues && series?.annual_count > 0">
+    Annuals
+</button>
+
+<!-- Specials tab: only show if hasPlainIssues AND specials exist -->
+<button x-show="hasPlainIssues && series?.special_count > 0">
+    Specials
+</button>
 ```
 
-See [docs/ALPINE_GUIDE.md](./docs/ALPINE_GUIDE.md) for detailed examples.
+## Examples
 
-### HTMX + Alpine.js
-HTMX handles server communication, Alpine.js handles UI state:
+### Example 1: Standalone Graphic Novel
 
-```html
-<div x-data="{ filter: 'all' }">
-  <button 
-    @click="filter = 'completed'; htmx.ajax('GET', '/api/progress/?filter=completed', {...})"
-  >
-    Completed
-  </button>
-</div>
+**Series:** Batman: The Killing Joke
+- 1 volume
+- 1 issue (format="Graphic Novel")
+- No plain issues
+
+**Tabs Shown:**
+```
+[Volumes] [Issues] [Related] [Details]
 ```
 
-## 📊 What Changes
-
-### Added (10 files)
-- 8 HTML templates
-- 2 static files (CSS + JS)
-
-### Updated (1 file)
-- `app/main.py` - Added frontend routes
-
-### Unchanged
-- All API endpoints
-- Database and models
-- Business logic
-- Start scripts
-
-## ✅ Zero Breaking Changes
-
-Your existing API continues to work exactly as before. The frontend is purely additive!
-
-## 🎉 Next Steps
-
-Once integrated:
-1. Open http://localhost:8000
-2. Add a library
-3. Scan your comics
-4. Start reading!
+**Issues Tab Shows:**
+- Batman: The Killing Joke (with purple "Graphic Novel" badge)
 
 ---
 
-**Questions?** Check the documentation files or refer to your server logs.
+### Example 2: Standalone One-Shots
 
-**Happy Reading!** 📚
+**Series:** Superman: Red Son
+- 1 volume
+- 3 issues (format="One-Shot")
+- No plain issues
+
+**Tabs Shown:**
+```
+[Volumes] [Issues] [Related] [Details]
+```
+
+**Issues Tab Shows:**
+- Red Son #1 (with purple "One-Shot" badge)
+- Red Son #2 (with purple "One-Shot" badge)
+- Red Son #3 (with purple "One-Shot" badge)
+
+---
+
+### Example 3: TPB Collection
+
+**Series:** Watchmen
+- 1 volume
+- 1 issue (format="Trade Paperback")
+- No plain issues
+
+**Tabs Shown:**
+```
+[Volumes] [Issues] [Related] [Details]
+```
+
+**Issues Tab Shows:**
+- Watchmen TPB (with purple "Trade Paperback" badge)
+
+---
+
+### Example 4: Normal Series (Unchanged)
+
+**Series:** Batman
+- 5 volumes
+- 120 plain issues
+- 15 annuals
+- 8 specials
+
+**Tabs Shown:**
+```
+[Volumes] [Issues] [Annuals] [Specials] [Related] [Details]
+```
+
+**Issues Tab Shows:**
+- Batman #1
+- Batman #2
+- ... (120 plain issues)
+
+**Annuals Tab Shows:**
+- Batman Annual #1
+- ... (15 annuals)
+
+**Specials Tab Shows:**
+- Batman Giant-Size #1
+- ... (8 specials)
+
+---
+
+### Example 5: Series with Only Annuals
+
+**Series:** Amazing Spider-Man Annuals
+- 1 volume
+- 5 issues (format="Annual")
+- No plain issues, no specials
+
+**Tabs Shown:**
+```
+[Volumes] [Issues] [Related] [Details]
+```
+
+**Issues Tab Shows:**
+- Amazing Spider-Man Annual #1 (with yellow "Annual" badge)
+- Amazing Spider-Man Annual #2 (with yellow "Annual" badge)
+- ... (5 annuals with badges)
+
+## Visual Indicators
+
+When Issues tab shows non-plain issues, they still have their format badges:
+
+```
+┌─────────────┐
+│   Cover     │
+│             │ [Annual] ← Yellow badge
+│             │
+└─────────────┘
+Vol 1 #1
+Annual Title
+1990
+```
+
+```
+┌─────────────┐
+│   Cover     │
+│             │ [Graphic Novel] ← Purple badge
+│             │
+└─────────────┘
+Vol 1 #1
+The Killing Joke
+1988
+```
+
+This way users know these aren't "normal" issues even though they're in the Issues tab.
+
+## Statistics Display
+
+### Normal Series (has plain issues)
+```
+5 volumes • 120 issues • 15 annuals • 8 specials
+           ↑ Plain     ↑ Shown    ↑ Shown
+```
+
+### Standalone Series (no plain issues)
+```
+1 volume • 1 issue
+          ↑ Total count (annuals + specials)
+```
+
+No separate annual/special counts shown since they're all in Issues tab.
+
+## Key Features
+
+✅ **No empty tabs** - Users always see content in Issues tab  
+✅ **Format badges** - Still visible so users know what they're looking at  
+✅ **Volumes tab stays** - Can still navigate to future volume detail page  
+✅ **Auto-detection** - No configuration needed, just works  
+✅ **Backwards compatible** - Normal series work exactly as before  
+
+## Installation
+
+Just replace the template:
+
+```bash
+cp series_detail_v5.html /path/to/your-project/app/templates/series_detail.html
+python main.py  # Restart
+```
+
+No API changes needed! This is pure frontend logic.
+
+## Testing Checklist
+
+After updating:
+
+- [ ] **Standalone graphic novel**: Shows in Issues tab, no Annuals/Specials tabs
+- [ ] **Standalone one-shots**: Show in Issues tab, no Annuals/Specials tabs
+- [ ] **Normal series**: Issues/Annuals/Specials tabs all visible and correct
+- [ ] **Series with annuals only**: Annuals show in Issues tab with badges
+- [ ] **Series with specials only**: Specials show in Issues tab with badges
+- [ ] **Format badges visible**: Even when shown in Issues tab
+- [ ] **Statistics correct**: Shows total count for standalone, separate for normal
+
+
+---
+
+**No more empty tabs!** 🎉
