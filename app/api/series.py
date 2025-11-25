@@ -14,13 +14,16 @@ router = APIRouter()
 # Formats that are NOT considered "plain" issues
 NON_PLAIN_FORMATS = [
     'annual',
+    'giant size',
     'giant-size',
     'graphic novel',
     'one shot',
     'one-shot',
     'hardcover',
     'trade paperback',
+    'trade paper back',
     'tpb',
+    'preview'
     'special'
 ]
 
