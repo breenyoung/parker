@@ -14,6 +14,7 @@ from app.services.tags import TagService
 from app.services.credits import CreditService
 from app.services.reading_list import ReadingListService
 from app.services.collection import CollectionService
+from app.services.images import ImageService
 
 class LibraryScanner:
     """Scans library directories and imports comics"""
@@ -26,6 +27,7 @@ class LibraryScanner:
         self.credit_service = CreditService(db)
         self.reading_list_service = ReadingListService(db)
         self.collection_service = CollectionService(db)
+        self.image_service = ImageService()
 
     def scan(self, force: bool = False) -> dict:
         """
@@ -224,6 +226,10 @@ class LibraryScanner:
 
         self.db.commit()
 
+        # Generate thumbnail if it doesn't exist
+        if not comic.thumbnail_path or not Path(comic.thumbnail_path).exists():
+            self._generate_thumbnail(comic)
+
         print(f"Imported: {series_name} #{metadata.get('number', '?')} - {file_path.name}")
 
         return comic
@@ -311,6 +317,10 @@ class LibraryScanner:
         self.db.commit()
         self.db.refresh(comic)
 
+        # Generate thumbnail if it doesn't exist
+        if not comic.thumbnail_path or not Path(comic.thumbnail_path).exists():
+            self._generate_thumbnail(comic)
+
         print(f"Updated: {series_name} #{metadata.get('number', '?')} - {file_path.name}")
 
         return comic
@@ -367,3 +377,14 @@ class LibraryScanner:
             self.db.refresh(volume)
 
         return volume
+
+    def _generate_thumbnail(self, comic: Comic) -> None:
+        thumbnail_bytes = self.image_service.get_thumbnail(comic.file_path)
+        if thumbnail_bytes:
+            # Save with a proper filename
+            thumbnail_filename = f"comic_{comic.id}.webp"
+            # TODO: get cover path from settings instead of hardcoding here
+            thumbnail_path = Path("./storage/cover") / thumbnail_filename #settings.cache_dir / thumbnail_filename
+            thumbnail_path.write_bytes(thumbnail_bytes)
+            comic.thumbnail_path = str(thumbnail_path)
+            self.db.commit()
