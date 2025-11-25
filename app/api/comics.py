@@ -5,6 +5,8 @@ from typing import List
 from app.database import get_db
 from app.models.comic import Comic, Volume
 from app.models.series import Series
+from app.schemas.search import SearchRequest, SearchResponse
+from app.services.search import SearchService
 
 router = APIRouter()
 
@@ -32,6 +34,30 @@ async def list_comics(db: Session = Depends(get_db)):
         "comics": result
     }
 
+
+@router.post("/search")
+async def search_comics(request: SearchRequest, db: Session = Depends(get_db)):
+    """
+    Search comics with complex filters
+
+    Example request:
+```json
+    {
+      "match": "all",
+      "filters": [
+        {"field": "character", "operator": "contains", "value": ["Batman", "Superman"]},
+        {"field": "year", "operator": "equal", "value": 1985},
+        {"field": "publisher", "operator": "equal", "value": "DC Comics"}
+      ],
+      "sort_by": "year",
+      "sort_order": "desc",
+      "limit": 50
+    }
+```
+    """
+    search_service = SearchService(db)
+    results = search_service.search(request)
+    return results
 
 @router.get("/{comic_id}")
 async def get_comic(comic_id: int, db: Session = Depends(get_db)):
@@ -69,6 +95,15 @@ async def get_comic(comic_id: int, db: Session = Depends(get_db)):
 
         # Credits (grouped by role)
         "credits": credits,
+
+        # Or if you prefer individual fields:
+        #"writer": credits.get('writer', []),
+        #"penciller": credits.get('penciller', []),
+        #"inker": credits.get('inker', []),
+        #"colorist": credits.get('colorist', []),
+        #"letterer": credits.get('letterer', []),
+        #"cover_artist": credits.get('cover_artist', []),
+        #"editor": credits.get('editor', []),
 
         # Publishing
         "publisher": comic.publisher,
