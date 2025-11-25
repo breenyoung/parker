@@ -3,7 +3,7 @@
 {% block title %}Libraries - Comic Server{% endblock %}
 
 {% block content %}
-<div class="space-y-6" x-data="{ 
+<div class="space-y-6" x-data="{
     showAddLibrary: false,
     viewMode: 'grid',
     sortOrder: 'recent'
@@ -16,7 +16,7 @@
     </div>
 
     <!-- Libraries list -->
-    <div 
+    <div
         id="libraries-container"
         hx-get="/api/libraries/"
         hx-trigger="load"
@@ -31,7 +31,7 @@
     <div class="mt-12">
         <h2 class="text-2xl font-bold mb-4">All Comics</h2>
         <div class="flex items-center space-x-4 mb-4">
-            <select 
+            <select
                 x-model="sortOrder"
                 class="px-4 py-2 bg-gray-800 rounded-lg"
             >
@@ -39,8 +39,8 @@
                 <option value="title">Title A-Z</option>
                 <option value="year">Year</option>
             </select>
-            
-            <button 
+
+            <button
                 class="px-4 py-2 bg-gray-800 rounded-lg hover:bg-gray-700"
                 @click="viewMode = viewMode === 'grid' ? 'list' : 'grid'"
             >
@@ -48,8 +48,8 @@
                 <span x-text="viewMode === 'grid' ? 'List View' : 'Grid View'"></span>
             </button>
         </div>
-        
-        <div 
+
+        <div
             id="comics-grid"
             hx-get="/api/comics/"
             hx-trigger="load"
@@ -63,7 +63,7 @@
     </div>
 
     <!-- Add Library Modal -->
-    <div 
+    <div
         x-show="showAddLibrary"
         x-transition:enter="transition ease-out duration-300"
         x-transition:enter-start="opacity-0"
@@ -77,7 +77,7 @@
         style="display: none;"
         :style="{ display: showAddLibrary ? 'flex' : 'none' }"
     >
-        <div 
+        <div
             class="modal-content"
             x-transition:enter="transition ease-out duration-300"
             x-transition:enter-start="opacity-0 transform scale-90"
@@ -87,27 +87,27 @@
             x-transition:leave-end="opacity-0 transform scale-90"
         >
             <h3 class="text-xl font-bold mb-4">Add Library</h3>
-            <form 
+            <form
                 hx-post="/api/libraries/"
                 hx-on::after-request="showAddLibrary = false; htmx.trigger('#libraries-container', 'load')"
             >
                 <div class="space-y-4">
                     <div>
                         <label class="block text-sm font-medium mb-2">Library Name</label>
-                        <input 
-                            type="text" 
-                            name="name" 
-                            required 
+                        <input
+                            type="text"
+                            name="name"
+                            required
                             class="w-full px-4 py-2 bg-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                             placeholder="My Comics"
                         >
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-2">Path</label>
-                        <input 
-                            type="text" 
-                            name="path" 
-                            required 
+                        <input
+                            type="text"
+                            name="path"
+                            required
                             class="w-full px-4 py-2 bg-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                             placeholder="/path/to/comics"
                         >
@@ -125,6 +125,7 @@
         </div>
     </div>
 </div>
+{% endblock %}
 
 {% block extra_scripts %}
 <script>
@@ -150,7 +151,7 @@ function renderLibraries(data) {
         `;
         return;
     }
-    
+
     const html = data.map(lib => `
         <div class="bg-gray-800 rounded-lg p-6 hover:bg-gray-750 transition-colors">
             <div class="flex items-center justify-between">
@@ -159,7 +160,7 @@ function renderLibraries(data) {
                     <p class="text-gray-400 text-sm">${lib.path}</p>
                 </div>
                 <div class="flex space-x-2">
-                    <button 
+                    <button
                         class="btn-secondary text-sm"
                         hx-post="/api/libraries/${lib.id}/scan"
                         hx-trigger="click"
@@ -167,7 +168,7 @@ function renderLibraries(data) {
                     >
                         Scan
                     </button>
-                    <button 
+                    <button
                         class="text-red-400 hover:text-red-300"
                         hx-delete="/api/libraries/${lib.id}"
                         hx-confirm="Delete this library?"
@@ -180,7 +181,7 @@ function renderLibraries(data) {
             </div>
         </div>
     `).join('');
-    
+
     container.innerHTML = `<div class="space-y-4">${html}</div>`;
 }
 
@@ -194,12 +195,12 @@ function renderComics(comics) {
         `;
         return;
     }
-    
+
     const html = comics.map(comic => `
         <a href="/reader/${comic.id}" class="comic-card">
             <div class="aspect-[2/3] bg-gray-800 rounded-lg overflow-hidden relative group">
-                <img 
-                    src="/api/comics/${comic.id}/thumbnail" 
+                <img
+                    src="/api/comics/${comic.id}/thumbnail"
                     alt="${comic.title}"
                     class="w-full h-full object-cover"
                     loading="lazy"
@@ -215,7 +216,7 @@ function renderComics(comics) {
             </div>
         </a>
     `).join('');
-    
+
     grid.innerHTML = html;
 }
 </script>
