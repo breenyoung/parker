@@ -36,6 +36,8 @@ class Comic(Base):
     year = Column(Integer)
     month = Column(Integer)
     day = Column(Integer)
+    web = Column(String)
+    notes = Column(Text)
 
     # Credits now handled via relationships (removed individual fields)
     credits = relationship("ComicCredit", back_populates="comic", cascade="all, delete-orphan")

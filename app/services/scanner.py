@@ -166,6 +166,8 @@ class LibraryScanner:
             year=int(metadata.get('year')) if metadata.get('year') else None,
             month=int(metadata.get('month')) if metadata.get('month') else None,
             day=int(metadata.get('day')) if metadata.get('day') else None,
+            web=metadata.get('web'),
+            notes=metadata.get('notes'),
 
             # Publishing
             publisher=metadata.get('publisher'),
@@ -242,6 +244,8 @@ class LibraryScanner:
         comic.year = int(metadata.get('year')) if metadata.get('year') else None
         comic.month = int(metadata.get('month')) if metadata.get('month') else None
         comic.day = int(metadata.get('day')) if metadata.get('day') else None
+        comic.web = metadata.get('web')
+        comic.notes = metadata.get('notes')
 
         # Publishing
         comic.publisher = metadata.get('publisher')

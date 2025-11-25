@@ -59,6 +59,8 @@ async def get_comic(comic_id: int, db: Session = Depends(get_db)):
         "number": comic.number,
         "title": comic.title,
         "summary": comic.summary,
+        "web": comic.web,
+        "notes": comic.notes,
 
         # Date
         "year": comic.year,
