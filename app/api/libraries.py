@@ -4,7 +4,7 @@ from typing import List
 
 from app.database import get_db
 from app.models.library import Library
-from app.services.scanner import LibraryScanner
+from app.services.scan_manager import scan_manager
 
 router = APIRouter()
 
@@ -62,10 +62,12 @@ async def scan_library(
     if not library:
         raise HTTPException(status_code=404, detail="Library not found")
 
-    scanner = LibraryScanner(library, db)
-    results = scanner.scan(force=force)
+    # Add to manager queue
+    result = scan_manager.add_task(library_id, force=force)
 
-    if "error" in results:
-        raise HTTPException(status_code=400, detail=results["error"])
+    return result
 
-    return results
+@router.get("/status/scanner")
+async def get_scanner_status():
+    """Check if a scan is currently running"""
+    return scan_manager.get_status()

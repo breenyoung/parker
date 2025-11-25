@@ -12,6 +12,7 @@ class Library(Base):
     path = Column(String, nullable=False)
     scan_on_startup = Column(Boolean, default=False)
     last_scanned = Column(DateTime, nullable=True)
+    is_scanning = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # Relationships - use string reference to avoid circular import
