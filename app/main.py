@@ -15,8 +15,9 @@ from app.models.tags import Character, Team, Location
 from app.models.credits import Person, ComicCredit
 from app.models.reading_list import ReadingList, ReadingListItem
 from app.models.collection import Collection, CollectionItem
+from app.models.reading_list import ReadingList, ReadingListItem
 
-from app.api import libraries, comics, reader, reading_lists, collections
+from app.api import libraries, comics, reader, reading_lists, collections, progress
 
 
 @asynccontextmanager
@@ -50,6 +51,7 @@ app.include_router(comics.router, prefix="/comics", tags=["comics"])
 app.include_router(reader.router, prefix="/reader", tags=["reader"])
 app.include_router(reading_lists.router, prefix="/reading-lists", tags=["reading-lists"])
 app.include_router(collections.router, prefix="/collections", tags=["collections"])
+app.include_router(progress.router, prefix="/progress", tags=["progress"])
 
 
 @app.get("/")

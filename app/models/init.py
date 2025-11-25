@@ -6,14 +6,17 @@ from app.models.tags import Character, Team, Location
 from app.models.credits import Person, ComicCredit
 from app.models.reading_list import ReadingList, ReadingListItem
 from app.models.collection import Collection, CollectionItem
+from app.models.reading_progress import ReadingProgress
 
 # This ensures all models are loaded before relationships are configured
-__all__ = ['Library', 'Series', 'Volume', 'Comic',
-           'Character', 'Team', 'Location',
-           'Person', 'ComicCredit',
-           'ReadingList', 'ReadingListItem',
-            'Collection', 'CollectionItem'
-           ]
+__all__ = [
+    'Library', 'Series', 'Volume', 'Comic',
+    'Character', 'Team', 'Location',
+    'Person', 'ComicCredit',
+    'ReadingList', 'ReadingListItem',
+    'Collection', 'CollectionItem',
+    'ReadingProgress'
+]
 
 
 # Import other models here as we create them
