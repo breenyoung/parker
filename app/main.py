@@ -131,6 +131,14 @@ async def library_view(request: Request, library_id: int):
         "library_id": library_id
     })
 
+@app.get("/series/{series_id}", response_class=HTMLResponse)
+async def series_detail(request: Request, series_id: int):
+    """Series detail page"""
+    return templates.TemplateResponse("series_detail.html", {
+        "request": request,
+        "series_id": series_id
+    })
+
 @app.get("/reader/{comic_id}", response_class=HTMLResponse)
 async def reader(request: Request, comic_id: int):
     """Comic reader"""
