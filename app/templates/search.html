@@ -243,6 +243,37 @@ document.addEventListener('alpine:init', () => {
         hasSearched: false,
         nextId: 2,
 
+        init() {
+            this.checkUrlParams();
+        },
+
+        checkUrlParams() {
+            const params = new URLSearchParams(window.location.search);
+
+            // Check if we have the minimum required params
+            if (params.has('field') && params.has('value')) {
+                const field = params.get('field');
+                const value = params.get('value');
+                // Default to 'contains' if not specified
+                const operator = params.get('operator') || 'contains';
+
+                // Overwrite the default rule with the URL rule
+                this.rules = [{
+                    id: 1,
+                    field: field,
+                    operator: operator,
+                    // TagInput expects an array
+                    value: [value]
+                }];
+
+                // Auto-execute the search
+                // Use $nextTick to ensure the DOM/Alpine data is ready
+                this.$nextTick(() => {
+                    this.performSearch();
+                });
+            }
+        },
+
         addRule() {
             this.rules.push({ id: this.nextId++, field: 'character', operator: 'contains', value: [] });
         },
