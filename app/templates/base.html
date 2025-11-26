@@ -40,6 +40,21 @@
                 
                 <!-- Quick search -->
                 <div class="flex items-center space-x-4">
+
+                    <div
+                        x-data="scannerStatus"
+                        x-show="active"
+                        x-transition.opacity
+                        class="hidden md:flex items-center space-x-2 bg-gray-900 px-3 py-1 rounded-full border border-blue-900/50"
+                        style="display: none;"
+                    >
+                        <svg class="animate-spin h-4 w-4 text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span class="text-xs text-blue-200" x-text="`Scanning ${libraryName}...`"></span>
+                    </div>
+
                     <div class="hidden sm:block" x-data="{ searching: false, results: [] }">
                         <input 
                             type="search" 
@@ -93,6 +108,44 @@
 
     <!-- Custom JS -->
     <script src="/static/js/app.js"></script>
+
+    <script>
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('scannerStatus', () => ({
+                active: false,
+                libraryName: '',
+                interval: null,
+
+                init() {
+                    // Check immediately on load
+                    this.checkStatus();
+                    // Then poll every 5 seconds
+                    this.interval = setInterval(() => this.checkStatus(), 5000);
+                },
+
+                async checkStatus() {
+                    try {
+                        const response = await fetch('/api/jobs/active');
+                        const data = await response.json();
+
+                        if (data.active) {
+                            this.active = true;
+                            this.libraryName = data.library_name;
+                        } else {
+                            this.active = false;
+                        }
+                    } catch (error) {
+                        console.error('Error checking scanner status:', error);
+                    }
+                },
+
+                destroy() {
+                    if (this.interval) clearInterval(this.interval);
+                }
+            }))
+        })
+    </script>
+
     {% block extra_scripts %}{% endblock %}
 </body>
 </html>

@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+
+{% block title %}Job History - Admin{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto" x-data="jobHistory">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-white">System Job History</h1>
+        <button 
+            @click="loadJobs()" 
+            class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-white flex items-center gap-2"
+        >
+            <span :class="{'animate-spin': loading}">↻</span> Refresh
+        </button>
+    </div>
+
+    <div class="bg-gray-800 rounded-xl overflow-hidden shadow-lg border border-gray-700">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-gray-300">
+                <thead class="bg-gray-900 text-gray-400 uppercase text-xs font-semibold">
+                    <tr>
+                        <th class="px-6 py-4">ID</th>
+                        <th class="px-6 py-4">Library</th>
+                        <th class="px-6 py-4">Status</th>
+                        <th class="px-6 py-4">Duration</th>
+                        <th class="px-6 py-4">Result</th>
+                        <th class="px-6 py-4">Date</th>
+                        <th class="px-6 py-4">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-700">
+                    <template x-for="job in jobs" :key="job.id">
+                        <tr class="hover:bg-gray-750 transition-colors">
+                            <td class="px-6 py-4 font-mono text-sm" x-text="`#${job.id}`"></td>
+                            <td class="px-6 py-4 font-medium text-white" x-text="job.library_name"></td>
+                            
+                            <td class="px-6 py-4">
+                                <span 
+                                    class="px-2 py-1 text-xs font-bold rounded-full"
+                                    :class="{
+                                        'bg-green-900 text-green-200': job.status === 'completed',
+                                        'bg-blue-900 text-blue-200': job.status === 'running',
+                                        'bg-red-900 text-red-200': job.status === 'failed',
+                                        'bg-gray-600 text-gray-200': job.status === 'pending'
+                                    }"
+                                    x-text="job.status"
+                                ></span>
+                            </td>
+
+                            <td class="px-6 py-4 text-sm">
+                                <span x-text="formatDuration(job.duration_seconds)"></span>
+                            </td>
+
+                            <td class="px-6 py-4 text-sm text-gray-400">
+                                <template x-if="job.summary">
+                                    <span>
+                                        <span class="text-green-400" x-text="`+${job.summary.imported}`"></span> imported,
+                                        <span x-show="job.summary.errors > 0" class="text-red-400" x-text="`${job.summary.errors} errors`"></span>
+                                        <span x-show="!job.summary.errors" class="text-gray-500">0 errors</span>
+                                    </span>
+                                </template>
+                                <span x-show="!job.summary && job.status === 'running'" class="italic">In progress...</span>
+                            </td>
+
+                            <td class="px-6 py-4 text-sm" x-text="formatDate(job.created_at)"></td>
+                            
+                            <td class="px-6 py-4">
+                                <button 
+                                    @click="viewDetails(job)"
+                                    class="text-blue-400 hover:text-blue-300 text-sm font-semibold"
+                                >
+                                    Details
+                                </button>
+                            </td>
+                        </tr>
+                    </template>
+                    
+                    <tr x-show="jobs.length === 0 && !loading">
+                        <td colspan="7" class="px-6 py-8 text-center text-gray-500">
+                            No scan history found.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div 
+        x-show="selectedJob" 
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 backdrop-blur-sm"
+        x-transition.opacity
+        style="display: none;"
+    >
+        <div 
+            class="bg-gray-800 rounded-xl shadow-2xl max-w-2xl w-full mx-4 border border-gray-700"
+            @click.away="selectedJob = null"
+        >
+            <div class="px-6 py-4 border-b border-gray-700 flex justify-between items-center">
+                <h3 class="text-xl font-bold text-white">Scan Details <span class="text-gray-500" x-text="selectedJob ? `#${selectedJob.id}` : ''"></span></h3>
+                <button @click="selectedJob = null" class="text-gray-400 hover:text-white">✕</button>
+            </div>
+            
+            <div class="p-6 overflow-y-auto max-h-[70vh]" x-data x-show="selectedJob">
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div class="bg-gray-900 p-4 rounded-lg">
+                        <div class="text-gray-500 text-sm">Library</div>
+                        <div class="text-lg font-bold" x-text="selectedJob.library_name"></div>
+                    </div>
+                    <div class="bg-gray-900 p-4 rounded-lg">
+                        <div class="text-gray-500 text-sm">Status</div>
+                        <div class="text-lg font-bold capitalize" 
+                             :class="{
+                                'text-green-400': selectedJob.status === 'completed',
+                                'text-red-400': selectedJob.status === 'failed'
+                             }"
+                             x-text="selectedJob.status"></div>
+                    </div>
+                </div>
+
+                <template x-if="selectedJob.summary">
+                    <div class="space-y-4">
+                        <h4 class="font-bold text-gray-300">Statistics</h4>
+                        <div class="grid grid-cols-3 gap-2 text-center">
+                            <div class="bg-green-900/30 p-2 rounded">
+                                <div class="text-2xl font-bold text-green-400" x-text="selectedJob.summary.imported"></div>
+                                <div class="text-xs text-gray-400">Imported</div>
+                            </div>
+                            <div class="bg-blue-900/30 p-2 rounded">
+                                <div class="text-2xl font-bold text-blue-400" x-text="selectedJob.summary.updated"></div>
+                                <div class="text-xs text-gray-400">Updated</div>
+                            </div>
+                            <div class="bg-red-900/30 p-2 rounded">
+                                <div class="text-2xl font-bold text-red-400" x-text="selectedJob.summary.errors"></div>
+                                <div class="text-xs text-gray-400">Errors</div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <template x-if="selectedJob.error">
+                    <div class="mt-6">
+                        <h4 class="font-bold text-red-400 mb-2">Error Log</h4>
+                        <pre class="bg-red-900/20 text-red-200 p-4 rounded-lg text-sm overflow-x-auto" x-text="selectedJob.error"></pre>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('jobHistory', () => ({
+            jobs: [],
+            loading: false,
+            selectedJob: null,
+
+            init() {
+                this.loadJobs();
+            },
+
+            async loadJobs() {
+                this.loading = true;
+                try {
+                    const response = await fetch('/api/jobs?limit=20');
+                    this.jobs = await response.json();
+                } catch (e) {
+                    console.error("Failed to load jobs", e);
+                } finally {
+                    this.loading = false;
+                }
+            },
+
+            viewDetails(job) {
+                this.selectedJob = job;
+            },
+
+            formatDuration(seconds) {
+                if (!seconds) return '--';
+                if (seconds < 60) return `${Math.round(seconds)}s`;
+                const mins = Math.floor(seconds / 60);
+                const secs = Math.round(seconds % 60);
+                return `${mins}m ${secs}s`;
+            },
+
+            formatDate(dateStr) {
+                return new Date(dateStr).toLocaleString();
+            }
+        }))
+    })
+</script>
+{% endblock %}

@@ -23,7 +23,7 @@ from app.models.reading_list import ReadingList, ReadingListItem
 from app.models.job import ScanJob
 
 # API Routes
-from app.api import libraries, comics, reader, reading_lists, collections, progress, series, volumes
+from app.api import libraries, comics, reader, reading_lists, collections, progress, series, volumes, jobs
 
 
 # Setup logging
@@ -109,7 +109,7 @@ app.include_router(reader.router, prefix="/api/reader", tags=["reader"])
 app.include_router(reading_lists.router, prefix="/api/reading-lists", tags=["reading-lists"])
 app.include_router(collections.router, prefix="/api/collections", tags=["collections"])
 app.include_router(progress.router, prefix="/api/progress", tags=["progress"])
-
+app.include_router(jobs.router, prefix="/api/jobs", tags=["jobs"])
 
 # Health check endpoint
 @app.get("/health")
@@ -182,3 +182,10 @@ async def reading_list_detail(request: Request, reading_list_id: int):
 async def continue_reading(request: Request):
     """Continue reading page"""
     return templates.TemplateResponse("continue_reading.html", {"request": request})
+
+
+# Admin routes
+@app.get("/admin/jobs", response_class=HTMLResponse)
+async def admin_jobs_page(request: Request):
+    """Serve the Admin Job History page"""
+    return templates.TemplateResponse("admin/jobs.html", {"request": request})
