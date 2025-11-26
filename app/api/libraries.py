@@ -65,6 +65,7 @@ async def scan_library(
     # Add to manager queue
     result = scan_manager.add_task(library_id, force=force)
 
+    # Returns: {"status": "queued", "job_id": 123, "message": "..."}
     return result
 
 @router.get("/status/scanner")

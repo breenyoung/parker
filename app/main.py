@@ -20,6 +20,7 @@ from app.models.credits import Person, ComicCredit
 from app.models.reading_list import ReadingList, ReadingListItem
 from app.models.collection import Collection, CollectionItem
 from app.models.reading_list import ReadingList, ReadingListItem
+from app.models.job import ScanJob
 
 # API Routes
 from app.api import libraries, comics, reader, reading_lists, collections, progress, series, volumes

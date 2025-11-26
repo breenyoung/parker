@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 import json
 import os
+import time
 
 from app.config import settings
 from app.models.library import Library
@@ -17,8 +18,9 @@ from app.services.reading_list import ReadingListService
 from app.services.collection import CollectionService
 from app.services.images import ImageService
 
+
 class LibraryScanner:
-    """Scans library directories and imports comics"""
+    """Scans library directories and imports comics with batch processing"""
 
     def __init__(self, library: Library, db: Session):
         self.library = library
@@ -30,14 +32,14 @@ class LibraryScanner:
         self.collection_service = CollectionService(db)
         self.image_service = ImageService()
 
+        # Local caches to reduce DB reads during the scan loop
+        self.series_cache: Dict[str, Series] = {}
+        self.volume_cache: Dict[str, Volume] = {}
+
     def scan(self, force: bool = False) -> dict:
         """
-        Scan the library path and import comics
-
-        Args:
-            force: If True, scan all files even if they haven't been modified
+        Scan the library path and import comics using batch commits.
         """
-
         library_path = Path(self.library.path)
 
         if not library_path.exists():
@@ -49,69 +51,109 @@ class LibraryScanner:
         updated = 0
         skipped = 0
 
+        # Batch configuration
+        BATCH_SIZE = 50
+        pending_changes = 0
+
         print(f"Scanning {library_path}... (force={force})")
 
-        # Track all file paths we've seen
-        scanned_paths = set()
+        # Start timing
+        start_time = time.time()
+
+        # 1. OPTIMIZATION: Pre-fetch all existing comics for this library.
+        # This avoids executing a SELECT query for every single file in the loop.
+        print("Pre-fetching existing file list...")
+        db_comics = self.db.query(Comic).join(Volume).join(Series).filter(
+            Series.library_id == self.library.id
+        ).all()
+
+        # Map file_path -> Comic object for O(1) lookup
+        existing_map = {c.file_path: c for c in db_comics}
+
+        # Track paths found on disk to identify deletions later
+        scanned_paths_on_disk = set()
 
         # Walk through directory
         for file_path in library_path.rglob('*'):
             if file_path.suffix.lower() in self.supported_extensions:
-                scanned_paths.add(str(file_path))
+                file_path_str = str(file_path)
+                scanned_paths_on_disk.add(file_path_str)
 
                 try:
-                    # Get file modification time
                     file_mtime = os.path.getmtime(file_path)
-
                     file_size_bytes = os.path.getsize(file_path)
 
-                    # Check if already imported
-                    existing = self.db.query(Comic).filter(
-                        Comic.file_path == str(file_path)
-                    ).first()
+                    # Check against our pre-fetched map
+                    existing = existing_map.get(file_path_str)
 
+                    comic = None
                     if existing:
-                        # If force=False, skip files that haven't been modified
+                        # Check modification time
                         if not force and existing.file_modified_at and existing.file_modified_at >= file_mtime:
                             skipped += 1
                             continue
                         else:
-                            # File modified or force scan - update it
+                            # Update existing
                             if force:
                                 print(f"Force scanning: {file_path.name}")
                             else:
-                                print(f"Updating modified comic: {file_path.name}")
+                                print(f"Updating modified: {file_path.name}")
+
                             comic = self._update_comic(existing, file_path, file_mtime, file_size_bytes)
                             updated += 1
+                            pending_changes += 1
                     else:
-                        # New comic - import it
+                        # Import new
                         comic = self._import_comic(file_path, file_mtime, file_size_bytes)
-                        imported += 1
+                        if comic:
+                            imported += 1
+                            pending_changes += 1
+                            # Update our local map so duplicates in same run are caught (unlikely but safe)
+                            existing_map[file_path_str] = comic
 
                     if comic:
                         found_comics.append({
                             "id": comic.id,
                             "filename": comic.filename,
-                            "series": comic.volume.series.name if comic.volume else None,
+                            # Use safe navigation in case relationship isn't refreshed yet
+                            "series": comic.volume.series.name if comic.volume and comic.volume.series else "Unknown",
                             "pages": comic.page_count
                         })
 
+                    # 2. OPTIMIZATION: Batch Commit
+                    # Only hit the disk once every BATCH_SIZE items
+                    if pending_changes >= BATCH_SIZE:
+                        print(f"Committing batch of {pending_changes} items...")
+                        self.db.commit()
+                        pending_changes = 0
+
                 except Exception as e:
+                    # If an error occurs, we log it but try not to kill the whole scan
                     errors.append({"file": str(file_path), "error": str(e)})
                     print(f"Error processing {file_path}: {e}")
+                    # In case of database error, we might need to rollback the current transaction
+                    # to proceed, but that would lose the pending batch.
+                    # Advanced logic would use savepoints, but simple try/catch per file is usually enough
+                    # for metadata errors. DB errors will likely raise out.
+
+        # Commit any remaining items
+        if pending_changes > 0:
+            print(f"Committing final batch of {pending_changes} items...")
+            self.db.commit()
 
         # Find and remove comics whose files no longer exist
-        deleted = self._cleanup_missing_files(scanned_paths)
+        # We pass the set we built during the loop
+        deleted = self._cleanup_missing_files(scanned_paths_on_disk, existing_map)
 
-        # Clean up empty reading lists
+        # Cleanup empty containers
         self.reading_list_service.cleanup_empty_lists()
-
-        # Clean up empty collections
         self.collection_service.cleanup_empty_collections()
 
         # Update library scan time
         self.library.last_scanned = datetime.utcnow()
         self.db.commit()
+
+        elapsed_time = round(time.time() - start_time, 2)
 
         return {
             "library": self.library.name,
@@ -123,20 +165,18 @@ class LibraryScanner:
             "deleted": deleted,
             "skipped": skipped,
             "errors": len(errors),
-            "comics": found_comics[:10],  # Show first 10
-            "error_details": errors[:5]  # Show first 5 errors
+            "comics": found_comics[:10],
+            "error_details": errors[:5],
+            "elapsed": elapsed_time
         }
 
-    def _cleanup_missing_files(self, scanned_paths: set) -> int:
+    def _cleanup_missing_files(self, scanned_paths_on_disk: set, existing_map: dict) -> int:
         """Remove comics from DB whose files no longer exist"""
-        # Get all comics in this library
-        all_comics = self.db.query(Comic).join(Volume).join(Series).filter(
-            Series.library_id == self.library.id
-        ).all()
-
         deleted = 0
-        for comic in all_comics:
-            if comic.file_path not in scanned_paths:
+
+        # Iterate over the map of comics we knew about at start
+        for file_path, comic in existing_map.items():
+            if file_path not in scanned_paths_on_disk:
                 print(f"Removing deleted comic: {comic.filename}")
                 self.db.delete(comic)
                 deleted += 1
@@ -153,15 +193,15 @@ class LibraryScanner:
         if not metadata:
             return None
 
-        # Get or create series
+        # Get or create series (Uses Cache)
         series_name = metadata.get('series', 'Unknown Series')
         series = self._get_or_create_series(series_name)
 
-        # Get or create volume
+        # Get or create volume (Uses Cache)
         volume_num = int(metadata.get('volume', 1)) if metadata.get('volume') else 1
         volume = self._get_or_create_volume(series, volume_num)
 
-        # Create comic WITHOUT tags, credits first
+        # Create comic
         comic = Comic(
             volume_id=volume.id,
             filename=file_path.name,
@@ -194,18 +234,20 @@ class LibraryScanner:
             alternate_number=metadata.get('alternate_number'),
             story_arc=metadata.get('story_arc'),
 
-            # Full metadata as JSON
+            # Full metadata
             metadata_json=json.dumps(metadata.get('raw_metadata', {}))
         )
 
         self.db.add(comic)
-        self.db.commit()
-        self.db.refresh(comic)
+        # CRITICAL: Use flush() instead of commit().
+        # This assigns the PK (id) so we can use it for the thumbnail,
+        # but keeps the transaction open for the batch.
+        self.db.flush()
 
         # Add credits
         self.credit_service.add_credits_to_comic(comic, metadata)
 
-        # Add the many-to-many relationships for tags
+        # Tags
         if metadata.get('characters'):
             comic.characters = self.tag_service.get_or_create_characters(metadata.get('characters'))
 
@@ -215,27 +257,25 @@ class LibraryScanner:
         if metadata.get('locations'):
             comic.locations = self.tag_service.get_or_create_locations(metadata.get('locations'))
 
-        # Add to reading lists based on AlternateSeries
+        # Reading lists
         self.reading_list_service.update_comic_reading_lists(
             comic,
             metadata.get('alternate_series'),
             metadata.get('alternate_number')
         )
 
-        # Add to collections based on SeriesGroup
+        # Collections
         self.collection_service.update_comic_collections(
             comic,
             metadata.get('series_group')
         )
 
-        self.db.commit()
-
-        # Generate thumbnail if it doesn't exist
+        # Generate thumbnail
+        # We check if we need to flush again inside here, but usually flush() above is enough
         if not comic.thumbnail_path or not Path(comic.thumbnail_path).exists():
             self._generate_thumbnail(comic)
 
         print(f"Imported: {series_name} #{metadata.get('number', '?')} - {file_path.name}")
-
         return comic
 
     def _update_comic(self, comic: Comic, file_path: Path, file_mtime: float, file_size_bytes: int) -> Optional[Comic]:
@@ -249,17 +289,14 @@ class LibraryScanner:
         series_name = metadata.get('series', 'Unknown Series')
         volume_num = int(metadata.get('volume', 1)) if metadata.get('volume') else 1
 
-        # Get or create new series/volume if changed
         series = self._get_or_create_series(series_name)
         volume = self._get_or_create_volume(series, volume_num)
 
-        # Update ALL comic fields (set to None if not in metadata)
+        # Update fields
         comic.volume_id = volume.id
         comic.file_modified_at = file_mtime
         comic.file_size = file_size_bytes
         comic.page_count = metadata['page_count']
-
-        # Basic info
         comic.number = metadata.get('number')
         comic.title = metadata.get('title')
         comic.summary = metadata.get('summary')
@@ -268,65 +305,48 @@ class LibraryScanner:
         comic.day = int(metadata.get('day')) if metadata.get('day') else None
         comic.web = metadata.get('web')
         comic.notes = metadata.get('notes')
-
-        # Publishing
         comic.publisher = metadata.get('publisher')
         comic.imprint = metadata.get('imprint')
         comic.format = metadata.get('format')
         comic.series_group = metadata.get('series_group')
-
-        # Technical (will be None if removed from metadata)
         comic.scan_information = metadata.get('scan_information')
+        comic.alternate_series = metadata.get('alternate_series')
+        comic.alternate_number = metadata.get('alternate_number')
+        comic.story_arc = metadata.get('story_arc')
+        comic.metadata_json = json.dumps(metadata.get('raw_metadata', {}))
+        comic.updated_at = datetime.utcnow()
 
-        # Update credits (automatically clears old ones)
+        # Update credits
         self.credit_service.add_credits_to_comic(comic, metadata)
 
-        # CLEAR existing tags first, then add new ones
-        # This ensures removed tags are actually removed
+        # Tags
         comic.characters.clear()
         comic.teams.clear()
         comic.locations.clear()
 
-        # Now add the new tags (if any)
         if metadata.get('characters'):
             comic.characters = self.tag_service.get_or_create_characters(metadata.get('characters'))
-
         if metadata.get('teams'):
             comic.teams = self.tag_service.get_or_create_teams(metadata.get('teams'))
-
         if metadata.get('locations'):
             comic.locations = self.tag_service.get_or_create_locations(metadata.get('locations'))
 
-        # Reading lists (will be None if removed)
-        comic.alternate_series = metadata.get('alternate_series')
-        comic.alternate_number = metadata.get('alternate_number')
-        comic.story_arc = metadata.get('story_arc')
-
-        # Update reading list membership
         self.reading_list_service.update_comic_reading_lists(
             comic,
             metadata.get('alternate_series'),
             metadata.get('alternate_number')
         )
 
-        # Update collection membership
         self.collection_service.update_comic_collections(
             comic,
             metadata.get('series_group')
         )
 
-        # Full metadata
-        comic.metadata_json = json.dumps(metadata.get('raw_metadata', {}))
-        comic.updated_at = datetime.utcnow()
+        # NO COMMIT HERE - handled by batch loop
 
-        self.db.commit()
-        self.db.refresh(comic)
-
-        # Generate thumbnail if it doesn't exist
+        # Generate thumbnail if missing
         if not comic.thumbnail_path or not Path(comic.thumbnail_path).exists():
             self._generate_thumbnail(comic)
-
-        print(f"Updated: {series_name} #{metadata.get('number', '?')} - {file_path.name}")
 
         return comic
 
@@ -354,22 +374,37 @@ class LibraryScanner:
             return None
 
     def _get_or_create_series(self, name: str) -> Series:
-        """Get existing series or create new one"""
+        """Get existing series or create new one with Caching"""
+
+        # 1. Check local cache
+        if name in self.series_cache:
+            return self.series_cache[name]
+
+        # 2. Check Database
         series = self.db.query(Series).filter(
             Series.name == name,
             Series.library_id == self.library.id
         ).first()
 
         if not series:
+            # 3. Create new (Flush, don't commit)
             series = Series(name=name, library_id=self.library.id)
             self.db.add(series)
-            self.db.commit()
-            self.db.refresh(series)
+            self.db.flush()
 
+            # 4. Add to cache
+        self.series_cache[name] = series
         return series
 
     def _get_or_create_volume(self, series: Series, volume_number: int) -> Volume:
-        """Get existing volume or create new one"""
+        """Get existing volume or create new one with Caching"""
+
+        # Composite key for cache
+        cache_key = f"{series.id}_{volume_number}"
+
+        if cache_key in self.volume_cache:
+            return self.volume_cache[cache_key]
+
         volume = self.db.query(Volume).filter(
             Volume.series_id == series.id,
             Volume.volume_number == volume_number
@@ -378,18 +413,24 @@ class LibraryScanner:
         if not volume:
             volume = Volume(series_id=series.id, volume_number=volume_number)
             self.db.add(volume)
-            self.db.commit()
-            self.db.refresh(volume)
+            self.db.flush()
 
+        self.volume_cache[cache_key] = volume
         return volume
 
     def _generate_thumbnail(self, comic: Comic) -> None:
-        thumbnail_bytes = self.image_service.get_thumbnail(comic.file_path)
-        if thumbnail_bytes:
-            # Save with a proper filename
+        try:
+            storage_path = Path("./storage/cover")
             thumbnail_filename = f"comic_{comic.id}.webp"
-            # TODO: get cover path from settings instead of hardcoding here
-            thumbnail_path = Path("./storage/cover") / thumbnail_filename #settings.cache_dir / thumbnail_filename
-            thumbnail_path.write_bytes(thumbnail_bytes)
-            comic.thumbnail_path = str(thumbnail_path)
-            self.db.commit()
+            target_path = storage_path / thumbnail_filename
+
+            # Use service to generate and save directly to target
+            success = self.image_service.generate_thumbnail(comic.file_path, target_path)
+
+            if success:
+                comic.thumbnail_path = str(target_path)
+                # Note: No commit needed here as batch loop handles it,
+                # or flush() in import_comic handles the object state.
+
+        except Exception as e:
+            print(f"Failed to generate thumbnail for {comic.filename}: {e}")

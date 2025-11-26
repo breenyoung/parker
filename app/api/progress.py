@@ -45,15 +45,25 @@ async def update_comic_progress(
         request: UpdateProgressRequest,
         db: Session = Depends(get_db)
 ):
-    """Update reading progress for a comic"""
+    """
+    Update reading progress for a comic.
+    Transactions are committed here (Controller layer).
+    """
     service = ReadingProgressService(db)
 
     try:
+        # 1. Prepare the data (Service performs flush internally)
         progress = service.update_progress(
             comic_id,
             request.current_page,
             request.total_pages
         )
+
+        # 2. Commit the transaction
+        db.commit()
+
+        # 3. Refresh to get updated timestamps/IDs from DB
+        db.refresh(progress)
 
         return {
             "comic_id": comic_id,
@@ -65,7 +75,11 @@ async def update_comic_progress(
             "last_read_at": progress.last_read_at
         }
     except ValueError as e:
+        db.rollback()
         raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/{comic_id}/mark-read")
@@ -75,12 +89,18 @@ async def mark_comic_as_read(comic_id: int, db: Session = Depends(get_db)):
 
     try:
         progress = service.mark_as_read(comic_id)
+
+        # Commit and Refresh
+        db.commit()
+        db.refresh(progress)
+
         return {
             "comic_id": comic_id,
             "completed": True,
             "message": "Comic marked as read"
         }
     except ValueError as e:
+        db.rollback()
         raise HTTPException(status_code=404, detail=str(e))
 
 
@@ -88,12 +108,20 @@ async def mark_comic_as_read(comic_id: int, db: Session = Depends(get_db)):
 async def mark_comic_as_unread(comic_id: int, db: Session = Depends(get_db)):
     """Mark a comic as unread (remove progress)"""
     service = ReadingProgressService(db)
-    service.mark_as_unread(comic_id)
 
-    return {
-        "comic_id": comic_id,
-        "message": "Comic marked as unread"
-    }
+    try:
+        service.mark_as_unread(comic_id)
+
+        # Commit the deletion
+        db.commit()
+
+        return {
+            "comic_id": comic_id,
+            "message": "Comic marked as unread"
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/")
@@ -103,11 +131,8 @@ async def get_recent_progress(
         db: Session = Depends(get_db)
 ):
     """
-    Get reading progress
-
-    Args:
-        filter: 'recent' (all recently read), 'in_progress' (currently reading), 'completed' (finished)
-        limit: Number of results to return
+    Get reading progress.
+    Read-only operation, so no commits needed.
     """
     service = ReadingProgressService(db)
 
@@ -124,7 +149,8 @@ async def get_recent_progress(
         results.append({
             "comic_id": comic.id,
             "series": comic.volume.series.name,
-            "volume": comic.volume.volume_number,
+            # Handle potential None values safely
+            "volume": comic.volume.volume_number if comic.volume else 0,
             "number": comic.number,
             "title": comic.title,
             "filename": comic.filename,

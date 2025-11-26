@@ -16,6 +16,8 @@
         background: #000;
         display: flex;
         flex-direction: column;
+        /* FIX 1: Z-Index higher than base.html nav (which is 50) */
+        z-index: 100;
     }
     .reader-toolbar {
         background: rgba(0, 0, 0, 0.8);
@@ -24,7 +26,7 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        z-index: 100;
+        /*z-index: 100;*/
     }
     .reader-content {
         flex: 1;
@@ -65,7 +67,7 @@
         background: rgba(0, 0, 0, 0.8);
         backdrop-filter: blur(10px);
         padding: 1rem 2rem;
-        rounded: 1rem;
+        border-radius: 1rem;
         display: flex;
         align-items: center;
         gap: 1rem;
@@ -171,13 +173,19 @@ const comicId = {{ comic_id }};
 let currentPage = 0;
 let totalPages = 0;
 let comicData = null;
+let cacheBuster = Date.now(); // Initialize a session-based cache buster
 
 // Load comic metadata
 async function loadComic() {
     try {
         const response = await fetch(`/api/comics/${comicId}`);
         comicData = await response.json();
-        
+
+        // Use the comic's updated_at timestamp as a robust cache buster
+        if (comicData.updated_at) {
+            cacheBuster = new Date(comicData.updated_at).getTime();
+        }
+
         document.getElementById('comic-title').textContent = 
             `${comicData.series} #${comicData.number}`;
         document.getElementById('comic-meta').textContent = 
@@ -211,8 +219,12 @@ function loadPage(pageIndex) {
     
     currentPage = pageIndex;
     const img = document.getElementById('current-page');
-    img.src = `/api/comics/${comicId}/page/${pageIndex}`;
-    
+
+    // Add Cache Buster to URL
+    // This forces the browser to re-fetch if the comic or server version changed
+    img.src = `/api/comics/${comicId}/page/${pageIndex}?v=${cacheBuster}`;
+
+
     document.getElementById('page-input').value = pageIndex + 1;
     
     // Update progress

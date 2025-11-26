@@ -7,6 +7,7 @@ from app.models.credits import Person, ComicCredit
 from app.models.reading_list import ReadingList, ReadingListItem
 from app.models.collection import Collection, CollectionItem
 from app.models.reading_progress import ReadingProgress
+from app.models.job import ScanJob
 
 # This ensures all models are loaded before relationships are configured
 __all__ = [
@@ -15,7 +16,8 @@ __all__ = [
     'Person', 'ComicCredit',
     'ReadingList', 'ReadingListItem',
     'Collection', 'CollectionItem',
-    'ReadingProgress'
+    'ReadingProgress',
+    'ScanJob'
 ]
 
 

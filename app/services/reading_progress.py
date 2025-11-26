@@ -1,16 +1,17 @@
 from sqlalchemy.orm import Session
 from datetime import datetime
 from typing import Optional, List
-from app.models.reading_progress import ReadingProgress
-from app.models.comic import Comic
-
+from app.models import ReadingProgress, Comic, Volume
 
 class ReadingProgressService:
-    """Service for managing reading progress"""
+    """
+    Service for managing reading progress.
+    Refactored to use 'Flush' instead of 'Commit' for better concurrency.
+    """
 
     def __init__(self, db: Session, user_id: int = 1):
         self.db = db
-        self.user_id = user_id  # Default user for now
+        self.user_id = user_id
 
     def get_progress(self, comic_id: int) -> Optional[ReadingProgress]:
         """Get reading progress for a comic"""
@@ -21,12 +22,8 @@ class ReadingProgressService:
 
     def update_progress(self, comic_id: int, current_page: int, total_pages: int = None) -> ReadingProgress:
         """
-        Update reading progress for a comic
-
-        Args:
-            comic_id: ID of the comic
-            current_page: Current page (zero-based)
-            total_pages: Total pages (if None, will fetch from comic)
+        Update reading progress for a comic.
+        NOTE: Caller must run db.commit() to persist changes.
         """
         # Get or create progress record
         progress = self.get_progress(comic_id)
@@ -55,13 +52,15 @@ class ReadingProgressService:
             progress.last_read_at = datetime.utcnow()
 
         # Check if completed (on last page)
-        if current_page >= progress.total_pages - 1:
+        # Safe navigation for total_pages in case it's 0 or None
+        t_pages = progress.total_pages if progress.total_pages else 0
+        if current_page >= (t_pages - 1) and t_pages > 0:
             progress.completed = True
         else:
             progress.completed = False
 
-        self.db.commit()
-        self.db.refresh(progress)
+        # CHANGED: Flush only. Checks constraints but doesn't write to disk.
+        self.db.flush()
 
         return progress
 
@@ -79,7 +78,8 @@ class ReadingProgressService:
                 comic_id=comic_id,
                 current_page=comic.page_count - 1,
                 total_pages=comic.page_count,
-                completed=True
+                completed=True,
+                last_read_at=datetime.utcnow()
             )
             self.db.add(progress)
         else:
@@ -87,8 +87,8 @@ class ReadingProgressService:
             progress.completed = True
             progress.last_read_at = datetime.utcnow()
 
-        self.db.commit()
-        self.db.refresh(progress)
+        # CHANGED: Flush only
+        self.db.flush()
 
         return progress
 
@@ -98,7 +98,7 @@ class ReadingProgressService:
 
         if progress:
             self.db.delete(progress)
-            self.db.commit()
+            # CHANGED: No commit here. Caller must commit.
 
     def get_recently_read(self, limit: int = 20) -> List[ReadingProgress]:
         """Get recently read comics"""
@@ -131,7 +131,7 @@ class ReadingProgressService:
         return self.db.query(ReadingProgress).join(
             Comic
         ).join(
-            Comic.volume
+            Volume
         ).filter(
             ReadingProgress.user_id == self.user_id,
             Volume.series_id == series_id
