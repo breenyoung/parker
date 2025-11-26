@@ -3,62 +3,44 @@
 {% block title %}Reading Lists - Comic Server{% endblock %}
 
 {% block content %}
-<div class="space-y-6">
+<div class="space-y-6" x-data="readingListsList()">
     <div class="flex items-center justify-between">
         <h1 class="text-3xl font-bold">Reading Lists</h1>
     </div>
-    
-    <!-- Reading lists -->
-    <div 
-        id="reading-lists-container"
-        hx-get="/api/reading-lists/"
-        hx-trigger="load"
-        hx-swap="innerHTML"
-    >
-        <div class="flex items-center justify-center py-12">
-            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-        </div>
+
+    <div x-show="loading" class="flex justify-center py-20">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+    </div>
+
+    <div x-show="!loading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <template x-for="list in lists" :key="list.id">
+            {% include "partials/reading_list_card.html" %}
+        </template>
+    </div>
+
+    <div x-show="!loading && lists.length === 0" class="text-center py-20 text-gray-400" style="display: none;">
+        <p class="text-lg">No reading lists found.</p>
     </div>
 </div>
 
 <script>
-// Handle reading lists response
-document.body.addEventListener('htmx:afterSwap', function(evt) {
-    if (evt.detail.target.id === 'reading-lists-container') {
-        const data = JSON.parse(evt.detail.xhr.response);
-        renderReadingLists(data);
-    }
-});
+function readingListsList() {
+    return {
+        lists: [],
+        loading: true,
 
-function renderReadingLists(data) {
-    const container = document.getElementById('reading-lists-container');
-    
-    if (!data.reading_lists || data.reading_lists.length === 0) {
-        container.innerHTML = `
-            <div class="text-center py-12 text-gray-400">
-                <p class="text-lg">No reading lists yet.</p>
-                <p class="text-sm mt-2">Reading lists are ordered sequences of comics, perfect for story arcs and crossovers.</p>
-            </div>
-        `;
-        return;
+        async init() {
+            try {
+                const res = await fetch('/api/reading-lists/');
+                const data = await res.json();
+                this.lists = data.reading_lists;
+            } catch (e) {
+                console.error(e);
+            } finally {
+                this.loading = false;
+            }
+        }
     }
-    
-    const html = data.reading_lists.map(list => `
-        <a href="/reading-lists/${list.id}" class="block bg-gray-800 rounded-lg p-6 hover:bg-gray-750 transition-colors">
-            <div class="flex items-center justify-between">
-                <div class="flex-1">
-                    <h3 class="text-xl font-bold">${list.name}</h3>
-                    ${list.description ? `<p class="text-gray-400 text-sm mt-1">${list.description}</p>` : ''}
-                    <p class="text-gray-500 text-sm mt-2">${list.comic_count} comics</p>
-                </div>
-                <div class="text-3xl">📖</div>
-            </div>
-            ${list.auto_generated ? 
-                '<div class="mt-2 text-xs text-gray-500">Auto-generated</div>' : ''}
-        </a>
-    `).join('');
-    
-    container.innerHTML = `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">${html}</div>`;
 }
 </script>
 {% endblock %}
