@@ -1,0 +1,28 @@
+<a :href="`/api/comics?volume_id=${volume.volume_id}`" class="block group">
+    <div class="aspect-[2/3] bg-gray-700 rounded-lg overflow-hidden relative shadow-md transition-transform duration-200 group-hover:scale-[1.02]">
+
+        <template x-if="volume.first_issue_id">
+            <img
+                :src="`/api/comics/${volume.first_issue_id}/thumbnail`"
+                :alt="`Volume ${volume.volume_number}`"
+                class="w-full h-full object-cover transition-opacity duration-300"
+                loading="lazy"
+            >
+        </template>
+
+        <template x-if="!volume.first_issue_id">
+            <div class="w-full h-full flex items-center justify-center bg-gray-800 text-gray-600">
+                <span class="text-4xl">📚</span>
+            </div>
+        </template>
+
+        <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-80"></div>
+
+        <div class="absolute bottom-3 left-3 right-3">
+            <p class="text-white font-bold text-lg leading-tight" x-text="`Vol ${volume.volume_number}`"></p>
+            <p class="text-gray-300 text-sm mt-1" x-text="`${volume.issue_count} issue${volume.issue_count !== 1 ? 's' : ''}`"></p>
+        </div>
+
+        <div class="absolute inset-0 border-2 border-blue-500 opacity-0 group-hover:opacity-100 rounded-lg transition-opacity"></div>
+    </div>
+</a>
