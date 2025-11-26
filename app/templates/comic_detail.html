@@ -86,6 +86,14 @@
                     <template x-if="comic?.format">
                         <span class="border border-gray-600 px-2 py-1 rounded uppercase text-xs tracking-wide" x-text="comic?.format"></span>
                     </template>
+
+                    <template x-if="comic?.web">
+                        <a :href="comic.web" target="_blank" rel="noopener noreferrer" class="flex items-center gap-1 text-green-400 hover:text-green-300 transition-colors border border-green-500/30 px-2 py-1 rounded hover:bg-green-500/10" title="View on ComicVine">
+                            <span>ComicVine</span>
+                            <span class="text-xs">↗</span>
+                        </a>
+                    </template>
+
                 </div>
             </div>
 
