@@ -214,38 +214,44 @@ async def get_comic_cover(comic_id: int, db: Session = Depends(get_db)):
 @router.get("/{comic_id}/thumbnail")
 async def get_comic_thumbnail(
         comic_id: int,
-        width: int = Query(300, ge=50, le=1000),
-        height: int = Query(450, ge=50, le=1500),
         db: Session = Depends(get_db)
 ):
     """
-    Get a thumbnail of the comic cover
-
-    Args:
-        comic_id: ID of the comic
-        width: Thumbnail width in pixels (default 300)
-        height: Thumbnail height in pixels (default 450)
+        Get the thumbnail for a comic.
+        Serves from storage/cover. Regenerates if missing.
+        Self-healing: Generates file if missing, but DOES NOT write to DB
+        to avoid locking issues during parallel loading.
     """
-    comic = db.query(Comic).filter(Comic.id == comic_id).first()
 
+    # 1. We don't strictly need to query the comic if we trust the ID,
+    # but it's good to ensure the ID is valid.
+    comic = db.query(Comic).filter(Comic.id == comic_id).first()
     if not comic:
         raise HTTPException(status_code=404, detail="Comic not found")
 
-    # Check if we have a cached path first
-    if comic.thumbnail_path and Path(comic.thumbnail_path).exists():
-        return FileResponse(comic.thumbnail_path, media_type="image/webp")
+    # 2. Layer 1: Check the path stored in the Database
+    if comic.thumbnail_path:
+        db_path = Path(comic.thumbnail_path)
+        if db_path.exists():
+            return FileResponse(db_path, media_type="image/webp")
 
+    # 3. Layer 2: Check the "Standard" path (Self-Healing fallback)
+    # This handles cases where the DB is NULL or points to a file that was deleted.
+    standard_path = Path(f"./storage/cover/comic_{comic.id}.webp")
+
+    if standard_path.exists():
+        return FileResponse(standard_path, media_type="image/webp")
+
+    # 4. Layer 3: Generate on the fly
+    # We use the standard path for the new file.
     image_service = ImageService()
-    thumbnail_bytes = image_service.get_thumbnail(comic.file_path, width, height)
+    success = image_service.generate_thumbnail(comic.file_path, standard_path)
 
-    if not thumbnail_bytes:
+    if not success:
+        # Return a placeholder or 404
         raise HTTPException(status_code=404, detail="Could not generate thumbnail")
 
-    return Response(
-        content=thumbnail_bytes,
-        media_type="image/webp",
-        headers={
-            "Cache-Control": "public, max-age=31536000",  # Cache for 1 year
-            "Content-Disposition": f'inline; filename="thumbnail.webp"'
-        }
-    )
+    # NOTE: We serve the file, but we DO NOT write back to the DB here.
+    # This avoids the "Database Locked" issues during parallel loading.
+    # The next time this runs, it will hit Layer 2 and succeed.
+    return FileResponse(standard_path, media_type="image/webp")

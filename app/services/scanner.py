@@ -420,17 +420,17 @@ class LibraryScanner:
 
     def _generate_thumbnail(self, comic: Comic) -> None:
         try:
-            thumbnail_bytes = self.image_service.get_thumbnail(comic.file_path)
-            if thumbnail_bytes:
-                # Ensure storage directory exists
-                storage_path = Path("./storage/cover")
-                storage_path.mkdir(parents=True, exist_ok=True)
+            storage_path = Path("./storage/cover")
+            thumbnail_filename = f"comic_{comic.id}.webp"
+            target_path = storage_path / thumbnail_filename
 
-                thumbnail_filename = f"comic_{comic.id}.webp"
-                thumbnail_path = storage_path / thumbnail_filename
+            # Use service to generate and save directly to target
+            success = self.image_service.generate_thumbnail(comic.file_path, target_path)
 
-                thumbnail_path.write_bytes(thumbnail_bytes)
-                comic.thumbnail_path = str(thumbnail_path)
-                # No commit here
+            if success:
+                comic.thumbnail_path = str(target_path)
+                # Note: No commit needed here as batch loop handles it,
+                # or flush() in import_comic handles the object state.
+
         except Exception as e:
             print(f"Failed to generate thumbnail for {comic.filename}: {e}")
