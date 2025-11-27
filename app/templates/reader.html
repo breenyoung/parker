@@ -206,15 +206,17 @@ async function loadComic() {
         } else {
             currentPage = 0;
         }
-        
-        loadPage(currentPage);
+
+        // Pass True here to skip the immediate POST request
+        loadPage(currentPage, true);
+
     } catch (error) {
         console.error('Error loading comic:', error);
         alert('Failed to load comic');
     }
 }
 
-function loadPage(pageIndex) {
+function loadPage(pageIndex, skipSave = false) {
     if (pageIndex < 0 || pageIndex >= totalPages) return;
     
     currentPage = pageIndex;
@@ -226,9 +228,12 @@ function loadPage(pageIndex) {
 
 
     document.getElementById('page-input').value = pageIndex + 1;
-    
-    // Update progress
-    updateProgress();
+
+    // Only update server if NOT skipping (e.g. initial load)
+    if (!skipSave) {
+        updateProgress();
+    }
+
 }
 
 async function updateProgress() {
@@ -359,6 +364,8 @@ document.addEventListener('keydown', (e) => {
 });
 
 // Load comic on page load
-loadComic();
+document.addEventListener('DOMContentLoaded', () => {
+    loadComic();
+});
 </script>
 {% endblock %}
