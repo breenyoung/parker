@@ -127,6 +127,7 @@
                     <span class="text-gray-400 text-sm">Sort By</span>
                     <select x-model="sortBy" class="bg-gray-700 text-white rounded px-2 py-1 text-sm border border-gray-600 outline-none">
                         <option value="created">Date Added</option>
+                        <option value="updated">Date Updated</option>
                         <option value="year">Release Year</option>
                         <option value="series">Series Name</option>
                         <option value="title">Issue Title</option>
@@ -237,6 +238,7 @@ document.addEventListener('alpine:init', () => {
         match: 'all',
         limit: 50,
         sortBy: 'created',
+        sortOrder: 'desc',
         results: [],
         totalResults: 0,
         loading: false,
@@ -249,8 +251,24 @@ document.addEventListener('alpine:init', () => {
 
         checkUrlParams() {
             const params = new URLSearchParams(window.location.search);
+            let shouldSearch = false;
 
-            // Check if we have the minimum required params
+            // 1. Handle Sorting overrides
+            if (params.has('sort_by')) {
+                this.sortBy = params.get('sort_by');
+                // Optional: Handle sort order if you passed it (e.g. &sort_order=asc)
+                // We default to 'desc' in the model, but you could read it here if needed.
+                shouldSearch = true;
+            }
+
+            if (params.has('sort_order')) {
+                // You might need to add `sortOrder` to your Alpine data object if it isn't there,
+                // or just pass it directly to the API payload if UI doesn't have a toggle for it.
+                // The current UI relies on hardcoded 'desc' in performSearch or API defaults.
+                this.sortOrder = params.get('sort_order');
+            }
+
+            // 2. Handle Filters (Deep Linking)
             if (params.has('field') && params.has('value')) {
                 const field = params.get('field');
                 const value = params.get('value');
@@ -266,8 +284,12 @@ document.addEventListener('alpine:init', () => {
                     value: [value]
                 }];
 
-                // Auto-execute the search
-                // Use $nextTick to ensure the DOM/Alpine data is ready
+                shouldSearch = true;
+            }
+
+            // 3. Trigger Search if any params were found
+            // Use $nextTick to ensure the DOM/Alpine data is ready
+            if (shouldSearch) {
                 this.$nextTick(() => {
                     this.performSearch();
                 });
@@ -308,6 +330,7 @@ document.addEventListener('alpine:init', () => {
                 })).filter(r => r.operator === 'is_empty' || r.operator === 'is_not_empty' || r.value !== null), // Filter out incomplete rules
 
                 sort_by: this.sortBy,
+                sort_order: this.sortOrder,
                 limit: parseInt(this.limit)
             };
 
