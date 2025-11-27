@@ -51,6 +51,7 @@ async def get_series_detail(series_id: int, db: SessionDep, current_user: Curren
         return {
             "id": series.id,
             "name": series.name,
+            "library_id": series.library_id,
             "volume_count": 0,
             "total_issues": 0,
             "volumes": [],
@@ -110,6 +111,7 @@ async def get_series_detail(series_id: int, db: SessionDep, current_user: Curren
     return {
         "id": series.id,
         "name": series.name,
+        "library_id": series.library_id,
         "publisher": stats.publisher,
         "start_year": stats.start_year,
         "volume_count": len(volumes),
