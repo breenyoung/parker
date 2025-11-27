@@ -4,6 +4,9 @@ from datetime import datetime
 import enum
 from app.database import Base
 
+class JobType(str, enum.Enum):
+    SCAN = "scan"
+    THUMBNAIL = "thumbnail"
 
 class JobStatus(str, enum.Enum):
     PENDING = "pending"
@@ -17,6 +20,8 @@ class ScanJob(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     library_id = Column(Integer, ForeignKey("libraries.id"), nullable=False)
+
+    job_type = Column(String, default=JobType.SCAN, index=True)
 
     # Status tracking
     status = Column(String, default=JobStatus.PENDING, index=True)

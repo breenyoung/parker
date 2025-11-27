@@ -272,8 +272,8 @@ class LibraryScanner:
 
         # Generate thumbnail
         # We check if we need to flush again inside here, but usually flush() above is enough
-        if not comic.thumbnail_path or not Path(comic.thumbnail_path).exists():
-            self._generate_thumbnail(comic)
+        #if not comic.thumbnail_path or not Path(comic.thumbnail_path).exists():
+            #self._generate_thumbnail(comic)
 
         print(f"Imported: {series_name} #{metadata.get('number', '?')} - {file_path.name}")
         return comic
@@ -345,8 +345,8 @@ class LibraryScanner:
         # NO COMMIT HERE - handled by batch loop
 
         # Generate thumbnail if missing
-        if not comic.thumbnail_path or not Path(comic.thumbnail_path).exists():
-            self._generate_thumbnail(comic)
+        #if not comic.thumbnail_path or not Path(comic.thumbnail_path).exists():
+            #self._generate_thumbnail(comic)
 
         return comic
 
