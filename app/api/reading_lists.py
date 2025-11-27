@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 
-from app.database import get_db
+from app.api.deps import get_db
 from app.models.reading_list import ReadingList, ReadingListItem
 from app.models.comic import Comic
 

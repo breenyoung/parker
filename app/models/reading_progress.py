@@ -10,8 +10,7 @@ class ReadingProgress(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
-    # User tracking (for now we'll use a default user_id, but ready for multi-user)
-    user_id = Column(Integer, default=1, nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
 
     # Comic being read
     comic_id = Column(Integer, ForeignKey('comics.id', ondelete='CASCADE'), nullable=False, index=True)
@@ -32,6 +31,7 @@ class ReadingProgress(Base):
 
     # Relationship
     comic = relationship("Comic", back_populates="reading_progress")
+    user = relationship("User", back_populates="reading_progress")
 
     @property
     def progress_percentage(self) -> float:

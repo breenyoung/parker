@@ -90,3 +90,7 @@ async def comic_detail(request: Request, comic_id: int):
         "request": request,
         "comic_id": comic_id
     })
+
+@router.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request):
+    return templates.TemplateResponse("login.html", {"request": request})

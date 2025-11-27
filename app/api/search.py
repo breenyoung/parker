@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, select
 from typing import List
 
-from app.database import get_db
+from app.api.deps import get_db
 from app.models.comic import Comic
 from app.models.series import Series
 from app.models.library import Library

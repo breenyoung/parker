@@ -8,6 +8,7 @@ from app.models.reading_list import ReadingList, ReadingListItem
 from app.models.collection import Collection, CollectionItem
 from app.models.reading_progress import ReadingProgress
 from app.models.job import ScanJob
+from app.models.user import User
 
 # This ensures all models are loaded before relationships are configured
 __all__ = [
@@ -17,7 +18,8 @@ __all__ = [
     'ReadingList', 'ReadingListItem',
     'Collection', 'CollectionItem',
     'ReadingProgress',
-    'ScanJob'
+    'ScanJob',
+    'User'
 ]
 
 

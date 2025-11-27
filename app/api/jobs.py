@@ -4,7 +4,7 @@ from sqlalchemy import desc
 from typing import List, Optional
 import json
 
-from app.database import get_db
+from app.api.deps import get_db
 from app.models.job import ScanJob, JobStatus
 from app.models.library import Library
 

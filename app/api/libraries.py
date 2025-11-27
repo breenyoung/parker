@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List
 
-from app.database import get_db
+from app.api.deps import get_db
 from app.models.library import Library
 from app.services.scan_manager import scan_manager
 
