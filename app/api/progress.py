@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List, Optional
 
-from app.database import get_db
+from app.api.deps import get_db
 from app.models.reading_progress import ReadingProgress
 from app.services.reading_progress import ReadingProgressService
 
