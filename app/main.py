@@ -32,6 +32,7 @@ from app.api import reading_lists, collections
 from app.api import jobs
 from app.api import auth
 from app.api import users
+from app.api import tasks
 
 # Frontend Routes (HTML)
 from app.routers import pages, admin
@@ -145,6 +146,8 @@ app.include_router(jobs.router, prefix="/api/jobs", tags=["jobs"])
 app.include_router(search.router, prefix="/api/search", tags=["search"])
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(users.router, prefix="/api/users", tags=["users"])
+app.include_router(tasks.router, prefix="/api/tasks", tags=["tasks"])
+
 
 # 2. Frontend Routers (HTML)
 # We don't use a prefix for 'pages' because they live at the root (/)
