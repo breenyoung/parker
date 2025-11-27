@@ -6,6 +6,11 @@ templates = Jinja2Templates(directory="app/templates")
 
 router = APIRouter()
 
+@router.get("/", response_class=HTMLResponse)
+async def admin_dashboard(request: Request):
+    """Admin Dashboard / Hub"""
+    return templates.TemplateResponse("admin/dashboard.html", {"request": request})
+
 @router.get("/jobs", response_class=HTMLResponse)
 async def admin_jobs_page(request: Request):
     """Serve the Admin Job History page"""
@@ -25,3 +30,8 @@ async def admin_jobs_page(request: Request):
 async def admin_tasks_page(request: Request):
     """Serve the Admin Tasks page"""
     return templates.TemplateResponse("admin/tasks.html", {"request": request})
+
+@router.get("/stats", response_class=HTMLResponse)
+async def admin_stats_page(request: Request):
+    """Serve the Admin Statistics page"""
+    return templates.TemplateResponse("admin/stats.html", {"request": request})

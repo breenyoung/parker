@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}Server Statistics - Comic Server{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto" x-data="serverStats()">
+    
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-3xl font-bold text-white">System Statistics</h1>
+        <button @click="loadStats()" class="text-gray-400 hover:text-white transition-colors">
+            <span :class="loading ? 'animate-spin inline-block' : ''">↻</span> Refresh
+        </button>
+    </div>
+
+    <div x-show="loading" class="flex justify-center py-20">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+    </div>
+
+    <div x-show="!loading && stats" style="display: none;" class="space-y-8">
+        
+        <div>
+            <h2 class="text-lg font-bold text-gray-400 mb-4 uppercase tracking-wider">Library Content</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                
+                <div class="bg-gray-800 rounded-lg p-6 border border-gray-700 shadow-lg">
+                    <div class="text-3xl font-bold text-white mb-1" x-text="stats?.counts?.libraries"></div>
+                    <div class="text-sm text-gray-400">Libraries</div>
+                </div>
+
+                <div class="bg-gray-800 rounded-lg p-6 border border-gray-700 shadow-lg">
+                    <div class="text-3xl font-bold text-blue-400 mb-1" x-text="stats?.counts?.series"></div>
+                    <div class="text-sm text-gray-400">Total Series</div>
+                </div>
+
+                <div class="bg-gray-800 rounded-lg p-6 border border-gray-700 shadow-lg">
+                    <div class="text-3xl font-bold text-green-400 mb-1" x-text="stats?.counts?.comics"></div>
+                    <div class="text-sm text-gray-400">Total Issues</div>
+                </div>
+
+                <div class="bg-gray-800 rounded-lg p-6 border border-gray-700 shadow-lg">
+                    <div class="text-3xl font-bold text-purple-400 mb-1" x-text="formatBytes(stats?.storage?.total_bytes)"></div>
+                    <div class="text-sm text-gray-400">Disk Usage</div>
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <h2 class="text-lg font-bold text-gray-400 mb-4 uppercase tracking-wider">Activity & Users</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                
+                <div class="bg-gray-800 rounded-lg p-6 border border-gray-700 shadow-lg flex items-center justify-between">
+                    <div>
+                        <div class="text-2xl font-bold text-white" x-text="stats?.counts?.users"></div>
+                        <div class="text-sm text-gray-400">Registered Users</div>
+                    </div>
+                    <div class="text-3xl opacity-50">👥</div>
+                </div>
+
+                <div class="bg-gray-800 rounded-lg p-6 border border-gray-700 shadow-lg flex items-center justify-between">
+                    <div>
+                        <div class="text-2xl font-bold text-white" x-text="stats?.activity?.pages_read"></div>
+                        <div class="text-sm text-gray-400">Total Pages Read</div>
+                    </div>
+                    <div class="text-3xl opacity-50">📖</div>
+                </div>
+
+                <div class="bg-gray-800 rounded-lg p-6 border border-gray-700 shadow-lg flex items-center justify-between">
+                    <div>
+                        <div class="text-2xl font-bold text-white" x-text="stats?.activity?.completed_books"></div>
+                        <div class="text-sm text-gray-400">Comics Finished</div>
+                    </div>
+                    <div class="text-3xl opacity-50">✅</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+function serverStats() {
+    return {
+        stats: null,
+        loading: true,
+
+        init() {
+            this.loadStats();
+        },
+
+        async loadStats() {
+            this.loading = true;
+            try {
+                const res = await fetch('/api/stats/');
+                if (res.ok) {
+                    this.stats = await res.json();
+                } else {
+                    console.error("Failed to load stats");
+                }
+            } catch (e) {
+                console.error(e);
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        formatBytes(bytes, decimals = 2) {
+            if (!bytes) return '0 Bytes';
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+        }
+    }
+}
+</script>
+{% endblock %}
