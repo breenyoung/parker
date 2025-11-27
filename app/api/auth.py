@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
@@ -49,6 +49,10 @@ async def login_for_access_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    # Update Last Login
+    user.last_login = datetime.utcnow()
+    db.commit()
+
     access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
     access_token = create_access_token(
         subject=user.username, expires_delta=access_token_expires
@@ -56,42 +60,6 @@ async def login_for_access_token(
 
     return {"access_token": access_token, "token_type": "bearer"}
 
-
-@router.post("/register", response_model=UserResponse)
-async def register_user(user_in: UserCreate, db: SessionDep):
-    """
-    Create a new user.
-    First user created becomes Superuser automatically.
-    """
-    # Check if user exists
-    user = db.query(User).filter(User.username == user_in.username).first()
-    if user:
-        raise HTTPException(
-            status_code=400,
-            detail="Username already registered",
-        )
-
-    # Check if this is the FIRST user
-    count = db.query(User).count()
-    is_first_user = (count == 0)
-
-    db_user = User(
-        email=user_in.email,
-        username=user_in.username,
-        hashed_password=get_password_hash(user_in.password),
-        is_superuser=is_first_user  # Auto-promote first user
-    )
-
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
-
-    return {
-        "id": db_user.id,
-        "username": db_user.username,
-        "email": db_user.email,
-        "is_superuser": db_user.is_superuser
-    }
 
 
 @router.get("/me", response_model=UserResponse)
