@@ -3,189 +3,108 @@
 {% block title %}Continue Reading - Comic Server{% endblock %}
 
 {% block content %}
-<div class="space-y-6" x-data="{ currentFilter: 'in_progress' }">
-    <h1 class="text-3xl font-bold">Continue Reading</h1>
-    
-    <!-- Filter tabs -->
-    <div class="flex space-x-2 border-b border-gray-700">
-        <button 
-            class="tab-button"
-            :class="{ 'active': currentFilter === 'in_progress' }"
-            @click="currentFilter = 'in_progress'; htmx.ajax('GET', '/api/progress/?filter=in_progress', {target: '#progress-list', swap: 'innerHTML'})"
+<div class="space-y-6" x-data="continueReading()">
+
+    <div class="flex items-center justify-between">
+        <h1 class="text-3xl font-bold">Continue Reading</h1>
+    </div>
+
+    <div class="flex space-x-2 border-b border-gray-700 overflow-x-auto">
+        <button
+            @click="setFilter('in_progress')"
+            :class="filter === 'in_progress' ? 'border-blue-500 text-blue-400' : 'border-transparent text-gray-400 hover:text-gray-300'"
+            class="px-4 py-2 border-b-2 font-medium transition-colors whitespace-nowrap"
         >
             In Progress
         </button>
-        <button 
-            class="tab-button"
-            :class="{ 'active': currentFilter === 'recent' }"
-            @click="currentFilter = 'recent'; htmx.ajax('GET', '/api/progress/?filter=recent', {target: '#progress-list', swap: 'innerHTML'})"
+        <button
+            @click="setFilter('recent')"
+            :class="filter === 'recent' ? 'border-blue-500 text-blue-400' : 'border-transparent text-gray-400 hover:text-gray-300'"
+            class="px-4 py-2 border-b-2 font-medium transition-colors whitespace-nowrap"
         >
             Recently Read
         </button>
-        <button 
-            class="tab-button"
-            :class="{ 'active': currentFilter === 'completed' }"
-            @click="currentFilter = 'completed'; htmx.ajax('GET', '/api/progress/?filter=completed', {target: '#progress-list', swap: 'innerHTML'})"
+        <button
+            @click="setFilter('completed')"
+            :class="filter === 'completed' ? 'border-blue-500 text-blue-400' : 'border-transparent text-gray-400 hover:text-gray-300'"
+            class="px-4 py-2 border-b-2 font-medium transition-colors whitespace-nowrap"
         >
             Completed
         </button>
     </div>
-    
-    <!-- Progress list -->
-    <div 
-        id="progress-list"
-        hx-get="/api/progress/?filter=in_progress"
-        hx-trigger="load"
-        hx-swap="innerHTML"
-    >
-        <div class="flex items-center justify-center py-12">
-            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-        </div>
+
+    <div x-show="loading" class="flex justify-center py-20">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
     </div>
+
+    <div x-show="!loading" class="space-y-4">
+        <template x-for="item in items" :key="item.comic_id">
+            {% include "partials/progress_card.html" %}
+        </template>
+    </div>
+
+    <div x-show="!loading && items.length === 0" class="text-center py-20 text-gray-400">
+        <p class="text-lg" x-text="getEmptyMessage()"></p>
+        <a href="/" class="text-blue-400 hover:underline mt-2 inline-block">Browse Library</a>
+    </div>
+
 </div>
 
 <script>
-// Handle response
-document.body.addEventListener('htmx:afterSwap', function(evt) {
-    if (evt.detail.target.id === 'progress-list') {
-        const data = JSON.parse(evt.detail.xhr.response);
-        renderProgress(data);
-    }
-});
+function continueReading() {
+    return {
+        filter: 'in_progress',
+        items: [],
+        loading: true,
 
-function renderProgress(data) {
-    const container = document.getElementById('progress-list');
-    
-    if (!data.results || data.results.length === 0) {
-        let message = 'No comics';
-        const filter = data.filter;
-        if (filter === 'in_progress') {
-            message = 'No comics in progress. Start reading to see them here!';
-        } else if (filter === 'completed') {
-            message = 'No completed comics yet.';
-        } else {
-            message = 'No recently read comics.';
+        init() {
+            this.loadItems();
+        },
+
+        async setFilter(newFilter) {
+            this.filter = newFilter;
+            await this.loadItems();
+        },
+
+        async loadItems() {
+            this.loading = true;
+            this.items = []; // Clear to prevent flash
+            try {
+                // Fetch JSON from existing API
+                const res = await fetch(`/api/progress/?filter=${this.filter}&limit=50`);
+                if (res.ok) {
+                    const data = await res.json();
+                    this.items = data.results;
+                }
+            } catch (e) {
+                console.error("Failed to load progress", e);
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        getEmptyMessage() {
+            if (this.filter === 'in_progress') return 'No comics currently in progress.';
+            if (this.filter === 'completed') return 'No completed comics yet.';
+            return 'No reading history found.';
+        },
+
+        async markRead(comicId) {
+            try {
+                await fetch(`/api/progress/${comicId}/mark-read`, { method: 'POST' });
+                // Refresh list to remove item or update status
+                this.loadItems();
+            } catch (e) { console.error(e); }
+        },
+
+        async markUnread(comicId) {
+            if(!confirm("Clear reading progress for this comic?")) return;
+            try {
+                await fetch(`/api/progress/${comicId}`, { method: 'DELETE' });
+                this.loadItems();
+            } catch (e) { console.error(e); }
         }
-        
-        container.innerHTML = `
-            <div class="text-center py-12 text-gray-400">
-                <p class="text-lg">${message}</p>
-            </div>
-        `;
-        return;
     }
-    
-    const html = data.results.map(item => {
-        const progressPercent = item.progress_percentage || 0;
-        return `
-            <div class="bg-gray-800 rounded-lg p-4 hover:bg-gray-750 transition-colors">
-                <div class="flex items-start space-x-4">
-                    <!-- Thumbnail -->
-                    <a href="/reader/${item.comic_id}" class="flex-shrink-0">
-                        <img 
-                            src="/api/comics/${item.comic_id}/thumbnail?width=120&height=180" 
-                            alt="${item.title}"
-                            class="w-24 h-36 object-cover rounded"
-                        >
-                    </a>
-                    
-                    <!-- Info -->
-                    <div class="flex-1 min-w-0">
-                        <a href="/reader/${item.comic_id}" class="hover:text-blue-400">
-                            <h3 class="text-lg font-bold truncate">${item.series}</h3>
-                            <p class="text-gray-400 truncate">#${item.number} ${item.title || ''}</p>
-                        </a>
-                        
-                        <!-- Progress bar -->
-                        <div class="mt-3">
-                            <div class="flex justify-between text-sm text-gray-400 mb-1">
-                                <span>Page ${item.current_page + 1} of ${item.total_pages}</span>
-                                <span>${Math.round(progressPercent)}%</span>
-                            </div>
-                            <div class="w-full bg-gray-700 rounded-full h-2">
-                                <div 
-                                    class="bg-blue-500 h-2 rounded-full transition-all"
-                                    style="width: ${progressPercent}%"
-                                ></div>
-                            </div>
-                        </div>
-                        
-                        <!-- Actions -->
-                        <div class="mt-3 flex items-center space-x-2">
-                            <a 
-                                href="/reader/${item.comic_id}" 
-                                class="btn-primary text-sm"
-                            >
-                                Continue Reading
-                            </a>
-                            
-                            ${!item.completed ? `
-                                <button 
-                                    class="btn-secondary text-sm"
-                                    onclick="markAsRead(${item.comic_id})"
-                                >
-                                    Mark as Read
-                                </button>
-                            ` : ''}
-                            
-                            <button 
-                                class="text-gray-400 hover:text-red-400 text-sm"
-                                onclick="markAsUnread(${item.comic_id})"
-                            >
-                                Clear Progress
-                            </button>
-                        </div>
-                        
-                        <p class="text-xs text-gray-500 mt-2">
-                            Last read: ${new Date(item.last_read_at).toLocaleDateString()}
-                        </p>
-                    </div>
-                </div>
-            </div>
-        `;
-    }).join('');
-    
-    container.innerHTML = `<div class="space-y-4">${html}</div>`;
-}
-
-async function markAsRead(comicId) {
-    try {
-        await fetch(`/api/progress/${comicId}/mark-read`, {
-            method: 'POST'
-        });
-        showToast('Marked as read!');
-        // Refresh the current view
-        htmx.trigger('#progress-list', 'load');
-    } catch (error) {
-        console.error('Error:', error);
-        showToast('Failed to mark as read');
-    }
-}
-
-async function markAsUnread(comicId) {
-    try {
-        await fetch(`/api/progress/${comicId}`, {
-            method: 'DELETE'
-        });
-        showToast('Progress cleared!');
-        // Refresh the current view
-        htmx.trigger('#progress-list', 'load');
-    } catch (error) {
-        console.error('Error:', error);
-        showToast('Failed to clear progress');
-    }
-}
-
-function showToast(message) {
-    const container = document.getElementById('toast-container');
-    const toast = document.createElement('div');
-    toast.className = 'bg-gray-800 text-white px-6 py-3 rounded-lg shadow-lg';
-    toast.textContent = message;
-    container.appendChild(toast);
-    
-    setTimeout(() => {
-        toast.remove();
-    }, 3000);
 }
 </script>
 {% endblock %}
