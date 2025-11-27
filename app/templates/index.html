@@ -26,6 +26,21 @@
         </div>
     </div>
 
+    <div x-show="!loading.starred && starredSeries.length > 0">
+        <div class="flex items-center justify-between mb-4 border-b border-gray-700 pb-2">
+            <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                <span class="text-yellow-400">★</span> Want to Read
+            </h2>
+            </div>
+
+        <div class="flex space-x-6 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
+            <template x-for="series in starredSeries" :key="series.id">
+                {% include "partials/series_card.html" %}
+            </template>
+        </div>
+    </div>
+
+
     <div x-show="!loading.recent && recentSeries.length > 0">
         <div class="flex items-center justify-between mb-4 border-b border-gray-700 pb-2">
             <h2 class="text-xl font-bold text-white">Recently Added</h2>
@@ -64,19 +79,22 @@ function homePage() {
         libraries: [],
         recentSeries: [],
         updatedSeries: [],
+        starredSeries: [],
 
         loading: {
             libraries: true,
             recent: true,
-            updated: true
+            updated: true,
+            starred: true
         },
 
         get isLoading() {
-            return this.loading.libraries || this.loading.recent || this.loading.updated;
+            return this.loading.libraries || this.loading.recent || this.loading.updated || this.loading.starred;
         },
 
         init() {
             this.fetchLibraries();
+            this.fetchStarred();
             this.fetchRecent();
             this.fetchUpdated();
         },
@@ -87,6 +105,18 @@ function homePage() {
                 if (res.ok) this.libraries = await res.json();
             } catch(e) { console.error(e); }
             finally { this.loading.libraries = false; }
+        },
+
+        async fetchStarred() {
+            try {
+                // Fetch starred series sorted by updated (recently modified or starred)
+                const res = await fetch('/api/series/?only_starred=true&size=20');
+                if (res.ok) {
+                    const data = await res.json();
+                    this.starredSeries = data.items;
+                }
+            } catch(e) { console.error(e); }
+            finally { this.loading.starred = false; }
         },
 
         async fetchRecent() {

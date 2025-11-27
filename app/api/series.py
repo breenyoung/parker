@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func, case, or_
 from typing import List, Optional, Annotated
+from datetime import datetime
 
 from app.core.comic_helpers import NON_PLAIN_FORMATS, get_format_filters, get_smart_cover
 
@@ -15,6 +16,7 @@ from app.models.collection import Collection, CollectionItem
 from app.models.reading_list import ReadingList, ReadingListItem
 from app.models.credits import Person, ComicCredit
 from app.models.tags import Character, Team, Location
+from app.models.interactions import UserSeries
 
 
 
@@ -108,6 +110,17 @@ async def get_series_detail(series_id: int, db: SessionDep, current_user: Curren
             "issue_count": count
         })
 
+    # Check if starred
+    is_starred = False
+    if current_user:
+        pref = db.query(UserSeries).filter(
+            UserSeries.user_id == current_user.id,
+            UserSeries.series_id == series_id
+        ).first()
+        if pref and pref.is_starred:
+            is_starred = True
+
+
     return {
         "id": series.id,
         "name": series.name,
@@ -118,6 +131,7 @@ async def get_series_detail(series_id: int, db: SessionDep, current_user: Curren
         "total_issues": stats.plain_count,
         "annual_count": stats.annual_count,
         "special_count": stats.special_count,
+        "starred": is_starred,
         "first_issue_id": first_issue.id if first_issue else None,
         "volumes": volumes_data,
         "collections": [{"id": c.id, "name": c.name, "description": c.description} for c in related_collections],
@@ -176,6 +190,7 @@ async def list_series(
         db: SessionDep,
         current_user: CurrentUser,
         params: Annotated[PaginationParams, Depends()],
+        only_starred: bool = False,
         sort_by: Annotated[str, Query(pattern="^(name|created|updated)$")] = "name",
         sort_desc: bool = False
 
@@ -192,6 +207,13 @@ async def list_series(
         # Filter where Series.library_id is in user.accessible_libraries
         allowed_ids = [lib.id for lib in current_user.accessible_libraries]
         query = query.filter(Series.library_id.in_(allowed_ids))
+
+    # Filter Starred
+    if only_starred:
+        query = query.join(UserSeries).filter(
+            UserSeries.user_id == current_user.id,
+            UserSeries.is_starred == True
+        )
 
     # 2. Apply Sorting
     if sort_by == "created":
@@ -232,3 +254,32 @@ async def list_series(
         "size": params.size,
         "items": items
     }
+
+
+@router.post("/{series_id}/star")
+async def star_series(series_id: int, db: SessionDep, current_user: CurrentUser):
+    # Check if series exists
+    series = db.query(Series).get(series_id)
+    if not series: raise HTTPException(404)
+
+    # Get or create preference
+    pref = db.query(UserSeries).filter_by(user_id=current_user.id, series_id=series_id).first()
+
+    if not pref:
+        pref = UserSeries(user_id=current_user.id, series_id=series_id)
+        db.add(pref)
+
+    pref.is_starred = True
+    pref.starred_at = datetime.utcnow()
+    db.commit()
+    return {"starred": True}
+
+
+@router.delete("/{series_id}/star")
+async def unstar_series(series_id: int, db: SessionDep, current_user: CurrentUser):
+    pref = db.query(UserSeries).filter_by(user_id=current_user.id, series_id=series_id).first()
+    if pref:
+        pref.is_starred = False
+        pref.starred_at = None
+        db.commit()
+    return {"starred": False}
