@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block title %}Library - Comic Server{% endblock %}
+
+{% block content %}
+<div class="space-y-6" x-data="libraryView()" x-init="init()">
+
+    <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-4">
+            <a href="/" class="text-blue-400 hover:text-blue-300">← Back</a>
+
+            <div x-show="loading.meta" class="h-8 w-48 bg-gray-700 rounded animate-pulse"></div>
+
+            <h1 x-show="!loading.meta" class="text-3xl font-bold text-white" x-text="library?.name"></h1>
+        </div>
+
+        <div x-show="!loading.meta && library?.path" class="hidden md:block text-xs text-gray-500 font-mono bg-gray-800 px-3 py-1 rounded border border-gray-700">
+            <span x-text="library.path"></span>
+        </div>
+    </div>
+
+    <div class="min-h-[500px]">
+        <div x-show="loading.series" class="flex justify-center py-20">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        </div>
+
+        <div x-show="!loading.series && seriesList.length > 0">
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
+                <template x-for="series in seriesList" :key="series.id">
+                    {% include "partials/series_card.html" %}
+                </template>
+            </div>
+
+            <div class="mt-12 flex justify-center items-center space-x-4 border-t border-gray-700 pt-6">
+                <button
+                    @click="changePage(currentPage - 1)"
+                    :disabled="currentPage === 1"
+                    class="px-4 py-2 rounded bg-gray-800 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed text-white transition-colors border border-gray-600"
+                >
+                    Previous
+                </button>
+
+                <span class="text-gray-400">
+                    Page <span class="text-white font-bold" x-text="currentPage"></span> of <span x-text="Math.ceil(totalItems / pageSize)"></span>
+                </span>
+
+                <button
+                    @click="changePage(currentPage + 1)"
+                    :disabled="currentPage >= Math.ceil(totalItems / pageSize)"
+                    class="px-4 py-2 rounded bg-gray-800 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed text-white transition-colors border border-gray-600"
+                >
+                    Next
+                </button>
+            </div>
+        </div>
+
+        <div x-show="!loading.series && seriesList.length === 0" class="text-center py-20 text-gray-500 bg-gray-800/50 rounded-xl border border-dashed border-gray-700">
+            <p class="text-xl">This library is empty.</p>
+            <p class="text-sm mt-2 text-gray-400">Scan this library to populate it with series.</p>
+
+            <div class="mt-6">
+                <button @click="triggerScan()" class="btn-primary">
+                    Scan Library Now
+                </button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+function libraryView() {
+    return {
+        libraryId: {{ library_id }},
+        library: null,
+        seriesList: [],
+
+        // Pagination State
+        currentPage: 1,
+        pageSize: 50,
+        totalItems: 0,
+
+        loading: {
+            meta: true,
+            series: true
+        },
+
+        init() {
+            this.loadLibraryMeta();
+            this.loadSeries();
+        },
+
+        async loadLibraryMeta() {
+            try {
+                const res = await fetch(`/api/libraries/${this.libraryId}`);
+                if (!res.ok) throw new Error("Library not found");
+                this.library = await res.json();
+                document.title = `${this.library.name} - Comic Server`;
+            } catch (e) {
+                console.error(e);
+            } finally {
+                this.loading.meta = false;
+            }
+        },
+
+        async loadSeries() {
+            this.loading.series = true;
+            try {
+                // Fetch paginated series
+                const url = `/api/libraries/${this.libraryId}/series?page=${this.currentPage}&size=${this.pageSize}`;
+                const res = await fetch(url);
+                const data = await res.json();
+
+                this.seriesList = data.items;
+                this.totalItems = data.total;
+
+                // Scroll to top
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            } catch (e) {
+                console.error(e);
+            } finally {
+                this.loading.series = false;
+            }
+        },
+
+        changePage(newPage) {
+            if (newPage < 1) return;
+            const maxPage = Math.ceil(this.totalItems / this.pageSize);
+            if (newPage > maxPage) return;
+
+            this.currentPage = newPage;
+            this.loadSeries();
+        },
+
+        async triggerScan() {
+            if (!confirm("Start scanning this library?")) return;
+            try {
+                const res = await fetch(`/api/libraries/${this.libraryId}/scan`, { method: 'POST' });
+                const data = await res.json();
+
+                // Show Global Spinner (from base.html polling)
+                // We don't need to do anything else here, the global poller will pick it up
+                if (res.ok) {
+                    alert("Scan started! The global indicator will appear shortly.");
+                } else {
+                    alert("Error: " + data.detail);
+                }
+            } catch(e) {
+                console.error(e);
+            }
+        }
+    }
+}
+</script>
+{% endblock %}

@@ -1,15 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
+from sqlalchemy import func, or_
 from typing import List, Annotated
 
-from app.api.deps import get_db
+from app.core.comic_helpers import get_smart_cover
 from app.models.library import Library
 from app.models.series import Series
+from app.models.comic import Comic, Volume
 from app.services.scan_manager import scan_manager
 from app.api.deps import PaginationParams, PaginatedResponse, SessionDep, CurrentUser, AdminUser
 
 router = APIRouter()
-
 
 @router.get("/")
 async def list_libraries(db: SessionDep,
@@ -43,15 +43,34 @@ async def get_library_series(
         db: SessionDep,
         current_user: CurrentUser
 ):
+    # 1. Filter by Library
     query = db.query(Series).filter(Series.library_id == library_id)
+
+    # 2. Pagination
     total = query.count()
     series_list = query.order_by(Series.name).offset(params.skip).limit(params.size).all()
+
+    # 3. Serialization & Thumbnails
+    items = []
+    for s in series_list:
+        # Find a cover (First issue of first volume)
+        base_query = db.query(Comic).join(Volume).filter(Volume.series_id == s.id)
+        first_issue = get_smart_cover(base_query)
+
+        items.append({
+            "id": s.id,
+            "name": s.name,
+            "library_id": s.library_id,
+            # Use getattr to be safe if you haven't migrated DB for timestamps yet
+            "created_at": getattr(s, 'created_at', None),
+            "thumbnail_path": f"/api/comics/{first_issue.id}/thumbnail" if first_issue else None
+        })
 
     return {
         "total": total,
         "page": params.page,
         "size": params.size,
-        "items": series_list
+        "items": items
     }
 
 @router.post("/")

@@ -1,223 +1,135 @@
 {% extends "base.html" %}
 
-{% block title %}Libraries - Comic Server{% endblock %}
+{% block title %}Home - Comic Server{% endblock %}
 
 {% block content %}
-<div class="space-y-6" x-data="{
-    showAddLibrary: false,
-    viewMode: 'grid',
-    sortOrder: 'recent'
-}">
+<div class="space-y-12" x-data="homePage()" x-init="init()">
+
     <div class="flex items-center justify-between">
-        <h1 class="text-3xl font-bold">Libraries</h1>
-        <button class="btn-primary" @click="showAddLibrary = true">
-            + Add Library
-        </button>
-    </div>
-
-    <!-- Libraries list -->
-    <div
-        id="libraries-container"
-        hx-get="/api/libraries/"
-        hx-trigger="load"
-        hx-swap="innerHTML"
-    >
-        <div class="flex items-center justify-center py-12">
-            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        <div>
+            <h1 class="text-3xl font-bold text-white">Library</h1>
+            <p class="text-gray-400 mt-1">Welcome back. Here's what's new in your collection.</p>
         </div>
-    </div>
-
-    <!-- Recent comics section -->
-    <div class="mt-12">
-        <h2 class="text-2xl font-bold mb-4">All Comics</h2>
-        <div class="flex items-center space-x-4 mb-4">
-            <select
-                x-model="sortOrder"
-                class="px-4 py-2 bg-gray-800 rounded-lg"
-            >
-                <option value="recent">Recently Added</option>
-                <option value="title">Title A-Z</option>
-                <option value="year">Year</option>
-            </select>
-
-            <button
-                class="px-4 py-2 bg-gray-800 rounded-lg hover:bg-gray-700"
-                @click="viewMode = viewMode === 'grid' ? 'list' : 'grid'"
-            >
-                <span x-text="viewMode === 'grid' ? '☰' : '⊞'"></span>
-                <span x-text="viewMode === 'grid' ? 'List View' : 'Grid View'"></span>
-            </button>
         </div>
 
-        <div
-            id="comics-grid"
-            hx-get="/api/comics/"
-            hx-trigger="load"
-            hx-swap="innerHTML"
-            :class="viewMode === 'grid' ? 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4' : 'space-y-2'"
-        >
-            <div class="flex items-center justify-center py-12 col-span-full">
-                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+    <div x-show="!loading.libraries">
+        <h2 class="text-xl font-bold text-white mb-4 border-b border-gray-700 pb-2">Your Libraries</h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <template x-for="lib in libraries" :key="lib.id">
+                {% include "partials/library_card.html" %}
+            </template>
+
+            <div x-show="libraries.length === 0" class="col-span-full py-8 text-center text-gray-500 bg-gray-800/50 rounded-lg border border-dashed border-gray-700">
+                No libraries found. <span class="text-gray-400">Ask an admin to assign you access.</span>
             </div>
         </div>
     </div>
 
-    <!-- Add Library Modal -->
-    <div
-        x-show="showAddLibrary"
-        x-transition:enter="transition ease-out duration-300"
-        x-transition:enter-start="opacity-0"
-        x-transition:enter-end="opacity-100"
-        x-transition:leave="transition ease-in duration-200"
-        x-transition:leave-start="opacity-100"
-        x-transition:leave-end="opacity-0"
-        class="modal"
-        @click.self="showAddLibrary = false"
-        @keydown.escape.window="showAddLibrary = false"
-        style="display: none;"
-        :style="{ display: showAddLibrary ? 'flex' : 'none' }"
-    >
-        <div
-            class="modal-content"
-            x-transition:enter="transition ease-out duration-300"
-            x-transition:enter-start="opacity-0 transform scale-90"
-            x-transition:enter-end="opacity-100 transform scale-100"
-            x-transition:leave="transition ease-in duration-200"
-            x-transition:leave-start="opacity-100 transform scale-100"
-            x-transition:leave-end="opacity-0 transform scale-90"
-        >
-            <h3 class="text-xl font-bold mb-4">Add Library</h3>
-            <form
-                hx-post="/api/libraries/"
-                hx-on::after-request="showAddLibrary = false; htmx.trigger('#libraries-container', 'load')"
-            >
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium mb-2">Library Name</label>
-                        <input
-                            type="text"
-                            name="name"
-                            required
-                            class="w-full px-4 py-2 bg-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            placeholder="My Comics"
-                        >
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium mb-2">Path</label>
-                        <input
-                            type="text"
-                            name="path"
-                            required
-                            class="w-full px-4 py-2 bg-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            placeholder="/path/to/comics"
-                        >
-                    </div>
-                    <div class="flex justify-end space-x-2">
-                        <button type="button" class="btn-secondary" @click="showAddLibrary = false">
-                            Cancel
-                        </button>
-                        <button type="submit" class="btn-primary">
-                            Add Library
-                        </button>
-                    </div>
-                </div>
-            </form>
+    <div x-show="!loading.recent && recentSeries.length > 0">
+        <div class="flex items-center justify-between mb-4 border-b border-gray-700 pb-2">
+            <h2 class="text-xl font-bold text-white">Recently Added</h2>
+            <a href="/search?sort_by=created&sort_order=desc" class="text-sm text-blue-400 hover:text-white transition-colors">View All</a>
+        </div>
+
+        <div class="flex space-x-6 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
+            <template x-for="series in recentSeries" :key="series.id">
+                {% include "partials/series_card.html" %}
+            </template>
         </div>
     </div>
+
+    <div x-show="!loading.updated && updatedSeries.length > 0">
+        <div class="flex items-center justify-between mb-4 border-b border-gray-700 pb-2">
+            <h2 class="text-xl font-bold text-white">Recently Updated</h2>
+            <a href="/search?sort_by=year&sort_order=desc" class="text-sm text-blue-400 hover:text-white transition-colors">View All</a>
+        </div>
+
+        <div class="flex space-x-6 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
+            <template x-for="series in updatedSeries" :key="series.id">
+                {% include "partials/series_card.html" %}
+            </template>
+        </div>
+    </div>
+
+    <div x-show="isLoading" class="flex justify-center py-20">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+    </div>
+
 </div>
-{% endblock %}
 
-{% block extra_scripts %}
 <script>
-// Handle libraries response
-document.body.addEventListener('htmx:afterSwap', function(evt) {
-    if (evt.detail.target.id === 'libraries-container') {
-        const data = JSON.parse(evt.detail.xhr.response);
-        renderLibraries(data);
+function homePage() {
+    return {
+        libraries: [],
+        recentSeries: [],
+        updatedSeries: [],
+
+        loading: {
+            libraries: true,
+            recent: true,
+            updated: true
+        },
+
+        get isLoading() {
+            return this.loading.libraries || this.loading.recent || this.loading.updated;
+        },
+
+        init() {
+            this.fetchLibraries();
+            this.fetchRecent();
+            this.fetchUpdated();
+        },
+
+        async fetchLibraries() {
+            try {
+                const res = await fetch('/api/libraries/');
+                if (res.ok) this.libraries = await res.json();
+            } catch(e) { console.error(e); }
+            finally { this.loading.libraries = false; }
+        },
+
+        async fetchRecent() {
+            try {
+                // Fetch top 10 created descending
+                const res = await fetch('/api/series/?sort_by=created&sort_desc=true&size=10');
+                if (res.ok) {
+                    const data = await res.json();
+                    this.recentSeries = data.items;
+                }
+            } catch(e) { console.error(e); }
+            finally { this.loading.recent = false; }
+        },
+
+        async fetchUpdated() {
+            try {
+                // Fetch top 10 updated descending
+                const res = await fetch('/api/series/?sort_by=updated&sort_desc=true&size=10');
+                if (res.ok) {
+                    const data = await res.json();
+                    this.updatedSeries = data.items;
+                }
+            } catch(e) { console.error(e); }
+            finally { this.loading.updated = false; }
+        }
     }
-    if (evt.detail.target.id === 'comics-grid') {
-        const data = JSON.parse(evt.detail.xhr.response);
-        renderComics(data.comics);
-    }
-});
-
-function renderLibraries(data) {
-    const container = document.getElementById('libraries-container');
-    if (data.length === 0) {
-        container.innerHTML = `
-            <div class="text-center py-12 text-gray-400">
-                <p class="text-lg">No libraries yet. Add one to get started!</p>
-            </div>
-        `;
-        return;
-    }
-
-    const html = data.map(lib => `
-        <div class="bg-gray-800 rounded-lg p-6 hover:bg-gray-750 transition-colors">
-            <div class="flex items-center justify-between">
-                <div>
-                    <h3 class="text-xl font-bold">${lib.name}</h3>
-                    <p class="text-gray-400 text-sm">${lib.path}</p>
-                </div>
-                <div class="flex space-x-2">
-                    <button
-                        class="btn-secondary text-sm"
-                        hx-post="/api/libraries/${lib.id}/scan"
-                        hx-trigger="click"
-                        hx-swap="none"
-                    >
-                        Scan
-                    </button>
-                    <button
-                        class="text-red-400 hover:text-red-300"
-                        hx-delete="/api/libraries/${lib.id}"
-                        hx-confirm="Delete this library?"
-                        hx-trigger="click"
-                        hx-on::after-request="htmx.trigger('#libraries-container', 'load')"
-                    >
-                        ×
-                    </button>
-                </div>
-            </div>
-        </div>
-    `).join('');
-
-    container.innerHTML = `<div class="space-y-4">${html}</div>`;
-}
-
-function renderComics(comics) {
-    const grid = document.getElementById('comics-grid');
-    if (!comics || comics.length === 0) {
-        grid.innerHTML = `
-            <div class="text-center py-12 text-gray-400 col-span-full">
-                <p class="text-lg">No comics found. Scan a library to add comics!</p>
-            </div>
-        `;
-        return;
-    }
-
-    const html = comics.map(comic => `
-        <a href="/reader/${comic.id}" class="comic-card">
-            <div class="aspect-[2/3] bg-gray-800 rounded-lg overflow-hidden relative group">
-                <img
-                    src="/api/comics/${comic.id}/thumbnail"
-                    alt="${comic.title}"
-                    class="w-full h-full object-cover"
-                    loading="lazy"
-                >
-                <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-70 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
-                    <span class="text-white font-bold">Read</span>
-                </div>
-            </div>
-            <div class="mt-2">
-                <p class="font-medium truncate">${comic.series}</p>
-                <p class="text-sm text-gray-400 truncate">#${comic.number} ${comic.title || ''}</p>
-                <p class="text-xs text-gray-500">${comic.year || ''}</p>
-            </div>
-        </a>
-    `).join('');
-
-    grid.innerHTML = html;
 }
 </script>
+
+<style>
+/* Custom Scrollbar for horizontal lists */
+.scrollbar-thin::-webkit-scrollbar {
+    height: 8px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: #374151;
+    border-radius: 4px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: #4b5563;
+}
+</style>
 {% endblock %}
