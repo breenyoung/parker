@@ -10,3 +10,8 @@ router = APIRouter()
 async def admin_jobs_page(request: Request):
     """Serve the Admin Job History page"""
     return templates.TemplateResponse("admin/jobs.html", {"request": request})
+
+@router.get("/users", response_class=HTMLResponse)
+async def admin_jobs_page(request: Request):
+    """Serve the Admin User Managegment page"""
+    return templates.TemplateResponse("admin/users.html", {"request": request})
