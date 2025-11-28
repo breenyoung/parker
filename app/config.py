@@ -15,6 +15,7 @@ class Settings(BaseSettings):
 
     # Paths
     unrar_path: str = r"C:\Program Files\WinRAR\UnRAR.exe"
+    #unrar_path: str = "unrar"
 
     # Storage paths
     cache_dir: Path = Path("./storage/cache")
