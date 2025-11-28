@@ -61,6 +61,7 @@ async def get_library_series(
             "id": s.id,
             "name": s.name,
             "library_id": s.library_id,
+            "start_year": first_issue.year,
             # Use getattr to be safe if you haven't migrated DB for timestamps yet
             "created_at": getattr(s, 'created_at', None),
             "thumbnail_path": f"/api/comics/{first_issue.id}/thumbnail" if first_issue else None

@@ -246,6 +246,7 @@ async def list_series(
             "id": s.id,
             "name": s.name,
             "library_id": s.library_id,
+            "start_year": first_issue.year,
             "thumbnail_path": f"/api/comics/{first_issue.id}/thumbnail" if first_issue else None,
             "created_at": s.created_at
         })
