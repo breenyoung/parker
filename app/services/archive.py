@@ -3,8 +3,8 @@ import rarfile
 from pathlib import Path
 from typing import List, Optional
 import io
-from app.config import settings
 import re
+from app.config import settings
 
 # Import the rarfile configuration
 import rarfile
@@ -81,33 +81,36 @@ class ComicArchive:
                 pages.append(f)
 
         # --- IMPROVED SORTING LOGIC ---
-        def natural_keys(text):
+        def sort_key(filename):
             """
-            Sorts strings naturally (1, 2, 10) AND handles the hyphen vs letter issue.
-
-            Logic:
-            1. Lowercase everything.
-            2. Replace separators (-, _) with a high-ASCII char '~' (ASCII 126).
-               This ensures 'a' (97) comes BEFORE '-' (126 in our logic).
-               Effect: 'c01a' sorts before 'c01-'
-            3. Split into chunks of text and numbers so 'page2' < 'page10'.
+            Multi-stage sort key:
+            1. Priority: Explicit covers ('fc', 'cover') come first (0 vs 1).
+            2. Natural: Numbers sorted numerically (1, 2, 10).
+            3. Symbols: Separators de-prioritized so 'c01a' < 'c01-'.
             """
             # 1. Normalize case
-            text = text.lower()
+            text = filename.lower()
 
-            # 2. Hack: De-prioritize separators
-            # By replacing '-' with '~', we make it sort AFTER letters.
-            # 'c01a' -> 'c01a'
-            # 'c01-' -> 'c01~'
-            # 'a' < '~', so 'c01a' wins.
+            # 2. COVER PRIORITY
+            # Check for explicit cover naming conventions using regex word boundaries.
+            # matches " fc ", "fc.", "-fc", etc.
+            # 0 = Cover (Highest Priority), 1 = Standard Page
+            is_cover = 0 if re.search(r'\b(fc|cover|front)\b', text) else 1
+
+            # 3. SEPARATOR HACK (From previous fix)
+            # Replace separators with high-ASCII char '~' to ensure letters sort before symbols.
+            # 'c01a' (a=97) < 'c01-' (~=126)
             text = text.replace('-', '~').replace('_', '~')
 
-            # 3. Split into [text, number, text, number...]
-            # 'c01a' -> ['c', 1, 'a']
-            return [int(c) if c.isdigit() else c for c in re.split(r'(\d+)', text)]
+            # 4. NATURAL SORT SPLIT
+            # Split into [text, number, text, number...]
+            natural_parts = [int(c) if c.isdigit() else c for c in re.split(r'(\d+)', text)]
+
+            # Return tuple: (Priority, Natural_Sort_Parts)
+            return (is_cover, natural_parts)
 
         # ------------------------------
-        pages.sort(key=natural_keys)
+        pages.sort(key=sort_key)
 
         return pages
 
