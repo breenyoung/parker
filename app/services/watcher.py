@@ -1,5 +1,7 @@
 import time
+
 import threading
+from pathlib import Path
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from app.database import SessionLocal
@@ -20,6 +22,13 @@ class LibraryEventHandler(FileSystemEventHandler):
         self._timer = None
         self._lock = threading.Lock()
         self._stopped = False
+
+        # Files to completely ignore
+        self.ignored_extensions = {'.webp', '.part', '.tmp', '.crdownload'}
+        self.ignored_names = {'.ds_store', 'thumbs.db', 'desktop.ini'}
+        # Directories to ignore
+        self.ignored_dirs = {'storage', '.git', '__pycache__'}
+
 
     def stop(self):
         """Cancel any pending scan timers (used when disabling watch mode)"""
@@ -45,12 +54,29 @@ class LibraryEventHandler(FileSystemEventHandler):
         if event.is_directory:
             return
 
+        path = Path(event.src_path)
+
+        # --- FILTER NOISE ---
+        # Ignore thumbnails and temp files
+        if path.suffix.lower() in self.ignored_extensions:
+            return
+
+        # Ignore system files
+        if path.name.lower() in self.ignored_names:
+            return
+
+        # Ignore internal storage/git folders if they somehow got into the watch path
+        # Check if any part of the path matches ignored dirs
+        if any(part in self.ignored_dirs for part in path.parts):
+            return
+        # -----------------------
+
         # Coalescing Logic (Batching)
         # If a timer is already running, do nothing (let it gather more changes).
         # If no timer, start one.
         with self._lock:
             if not self._stopped and not self._timer:
-                print(f"Watcher: Change detected in Library {self.library_id}. Starting {self.batch_window_seconds}s batch window.")
+                print(f"Watcher: Change detected in Library {self.library_id} ({event.event_type}: {path.name}). Starting {self.batch_window_seconds}s batch window.")
                 self._timer = threading.Timer(self.batch_window_seconds, self._trigger_scan)
                 self._timer.start()
 
