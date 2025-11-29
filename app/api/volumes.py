@@ -46,7 +46,8 @@ async def get_volume_detail(volume_id: int, db: SessionDep, current_user: Curren
         func.count(case((is_annual, 1))).label('annual_count'),
         func.count(case((is_special, 1))).label('special_count'),
         func.min(Comic.year).label('start_year'),
-        func.max(Comic.year).label('end_year')
+        func.max(Comic.year).label('end_year'),
+        func.max(Comic.publisher).label('publisher')
     ).filter(Comic.volume_id == volume_id).first()
 
     # 2. Find Cover (Plain issues priority)
@@ -97,6 +98,7 @@ async def get_volume_detail(volume_id: int, db: SessionDep, current_user: Curren
         "annual_count": stats.annual_count,
         "special_count": stats.special_count,
 
+        "publisher": stats.publisher,
         "start_year": stats.start_year,
         "end_year": stats.end_year,
         "first_issue_id": first_issue.id if first_issue else None,

@@ -34,34 +34,50 @@
                 </div>
                 
                 <div class="flex-1 pt-2">
+
+                    <h2 class="text-2xl text-gray-400 font-light" x-text="volume?.series_name"></h2>
                     <div class="flex justify-between items-start">
                         <div>
-                            <h2 class="text-2xl text-gray-400 font-light" x-text="volume?.series_name"></h2>
                             <h1 class="text-4xl font-bold text-white mb-3" x-text="`Volume ${volume?.volume_number}`"></h1>
+
+                            <div class="flex items-center gap-3">
+                                <template x-if="volume?.resume_to?.comic_id">
+                                    {%  include "partials/read_volume_button.html" %}
+                                </template>
+                            </div>
+
+                            <div class="mb-4 text-gray-300 flex items-center gap-2">
+                                <span class="text-sm text-gray-500">Publisher:</span>
+                                {% with publisher_ref="volume?.publisher" %}
+                                    {% include "partials/publisher_link.html" %}
+                                {% endwith %}
+                            </div>
+
+                            <div class="flex items-center space-x-4 text-sm text-gray-300">
+                                <template x-if="!isStandalone">
+                                    <span class="bg-blue-900/50 px-3 py-1 rounded-full border border-blue-800 text-blue-100" x-text="`${volume?.total_issues || 0} Issues`"></span>
+                                </template>
+
+                                <template x-if="volume?.annual_count > 0">
+                                    <span class="bg-yellow-900/50 px-3 py-1 rounded-full border border-yellow-800 text-yellow-100" x-text="`${volume?.annual_count} Annuals`"></span>
+                                </template>
+
+                                <template x-if="volume?.special_count > 0">
+                                    <span class="bg-purple-900/50 px-3 py-1 rounded-full border border-purple-800 text-purple-100" x-text="`${volume?.special_count} Specials`"></span>
+                                </template>
+
+                                <span x-show="volume?.start_year" x-text="`${volume?.start_year} - ${volume?.end_year || 'Present'}`"></span>
+
+                            </div>
+
                         </div>
-                    </div>
 
-                    <div class="flex items-center gap-3">
                         <template x-if="volume?.resume_to?.comic_id">
-                            {%  include "partials/read_volume_button.html" %}
+                             <a :href="`/reader/${volume.resume_to.comic_id}`" ...>...</a>
                         </template>
+
                     </div>
 
-                    <div class="flex items-center space-x-4 text-sm text-gray-300">
-                        <template x-if="!isStandalone">
-                            <span class="bg-blue-900/50 px-3 py-1 rounded-full border border-blue-800 text-blue-100" x-text="`${volume?.total_issues || 0} Issues`"></span>
-                        </template>
-
-                        <template x-if="volume?.annual_count > 0">
-                            <span class="bg-yellow-900/50 px-3 py-1 rounded-full border border-yellow-800 text-yellow-100" x-text="`${volume?.annual_count} Annuals`"></span>
-                        </template>
-
-                        <template x-if="volume?.special_count > 0">
-                            <span class="bg-purple-900/50 px-3 py-1 rounded-full border border-purple-800 text-purple-100" x-text="`${volume?.special_count} Specials`"></span>
-                        </template>
-
-                        <span x-show="volume?.start_year" x-text="`${volume?.start_year} - ${volume?.end_year || 'Present'}`"></span>
-                    </div>
                 </div>
             </div>
         </div>
