@@ -108,8 +108,8 @@ class ImageService:
         """
         try:
             # 1. Extract Cover
-            cover_bytes = self.get_page_image(comic_path, 0)
-            if not cover_bytes:
+            cover_bytes, is_correct_format = self.get_page_image(comic_path, 0)
+            if not cover_bytes or not is_correct_format:
                 return False
 
             # 2. Process Image
