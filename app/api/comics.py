@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response, FileResponse
-from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Annotated
 from pathlib import Path
+import re
+
+
 
 from app.api.deps import SessionDep, CurrentUser
 from app.models.comic import Comic, Volume
@@ -15,6 +17,10 @@ from app.models.reading_progress import ReadingProgress
 
 router = APIRouter()
 
+def natural_sort_key(s):
+    """Sorts 'Issue 1' before 'Issue 10' and handles '10a'"""
+    return [int(text) if text.isdigit() else text.lower()
+            for text in re.split('([0-9]+)', str(s))]
 
 @router.get("/")
 async def list_comics(db: SessionDep, current_user: CurrentUser):
@@ -178,17 +184,22 @@ async def get_comic_pages(comic_id: int, db: SessionDep, current_user: CurrentUs
 
 
 @router.get("/{comic_id}/page/{page_index}")
-async def get_comic_page(
+def get_comic_page(
         comic_id: int,
         page_index: int,
-        db: SessionDep
+        db: SessionDep,
+        sharpen: Annotated[bool, Query()] = False,
+        grayscale: Annotated[bool, Query()] = False,
 ):
     """
-    Get a specific page image from a comic
+    Get a specific page image from a comic.  Supports server-side sharpening and grayscale.
 
     Args:
         comic_id: ID of the comic
         page_index: Zero-based page index (0 = first page/cover)
+        db: Database session
+        sharpen: If true, sharpen the image
+        grayscale: If true, convert the image to grayscale
     """
     comic = db.query(Comic).filter(Comic.id == comic_id).first()
 
@@ -196,13 +207,16 @@ async def get_comic_page(
         raise HTTPException(status_code=404, detail="Comic not found")
 
     image_service = ImageService()
-    image_bytes = image_service.get_page_image(comic.file_path, page_index)
+    image_bytes, is_correct_format = image_service.get_page_image(comic.file_path, page_index, sharpen=sharpen, grayscale=grayscale)
 
     if not image_bytes:
         raise HTTPException(status_code=404, detail="Page not found")
 
     # Detect image type from bytes
-    if image_bytes.startswith(b'\xff\xd8\xff'):
+    # If filtered, it's always JPEG. If raw, detect type.
+    if sharpen or grayscale:
+        media_type = "image/jpeg"
+    elif image_bytes.startswith(b'\xff\xd8\xff'):
         media_type = "image/jpeg"
     elif image_bytes.startswith(b'\x89PNG'):
         media_type = "image/png"
@@ -213,13 +227,24 @@ async def get_comic_page(
     else:
         media_type = "image/jpeg"  # Default
 
+    # CACHE LOGIC
+    headers = {
+        "Content-Disposition": f'inline; filename="page_{page_index}.jpg"'
+    }
+
+    if is_correct_format:
+        # Success: Cache aggressively
+        headers["Cache-Control"] = "public, max-age=31536000"
+    else:
+        # Fallback triggered: DO NOT CACHE
+        # This prevents the raw image from being permanently cached
+        # for a URL like "?grayscale=true"
+        headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+
     return Response(
         content=image_bytes,
         media_type=media_type,
-        headers={
-            "Cache-Control": "public, max-age=31536000",  # Cache for 1 year
-            "Content-Disposition": f'inline; filename="page_{page_index}.jpg"'
-        }
+        headers=headers
     )
 
 @router.get("/{comic_id}/cover")
@@ -272,3 +297,45 @@ async def get_comic_thumbnail(
     # This avoids the "Database Locked" issues during parallel loading.
     # The next time this runs, it will hit Layer 2 and succeed.
     return FileResponse(standard_path, media_type="image/webp")
+
+
+@router.get("/{comic_id}/read-init")
+async def get_comic_reader_init(comic_id: int, db: SessionDep, current_user: CurrentUser):
+    """
+    Get initialization data for the reader:
+    - Page Count
+    - Previous / Next Comic IDs in the volume
+    """
+    comic = db.query(Comic).filter(Comic.id == comic_id).first()
+    if not comic:
+        raise HTTPException(status_code=404, detail="Comic not found")
+
+    # 1. Page Count
+    image_service = ImageService()
+    page_count = image_service.get_page_count(comic.file_path)
+
+    # 2. Next/Prev Logic
+    # Fetch all siblings in the same volume
+    siblings = db.query(Comic.id, Comic.number) \
+        .filter(Comic.volume_id == comic.volume_id) \
+        .all()
+
+    # Sort them naturally
+    siblings.sort(key=lambda x: natural_sort_key(x.number))
+
+    # Find current index
+    current_idx = next((i for i, x in enumerate(siblings) if x.id == comic_id), -1)
+
+    prev_id = siblings[current_idx - 1].id if current_idx > 0 else None
+    next_id = siblings[current_idx + 1].id if current_idx < len(siblings) - 1 else None
+
+    return {
+        "comic_id": comic.id,
+        "title": comic.title,
+        "series_name": comic.volume.series.name,
+        "volume_number": comic.volume.volume_number,
+        "number": comic.number,
+        "page_count": page_count,
+        "next_comic_id": next_id,
+        "prev_comic_id": prev_id
+    }
