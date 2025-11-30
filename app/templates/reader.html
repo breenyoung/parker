@@ -207,6 +207,47 @@
             </select>
         </div>
     </div>
+
+<div x-show="showGoto" x-cloak
+         class="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 backdrop-blur-sm"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-100"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         @click.self="closeGoto()">
+
+        <div class="bg-gray-900 border border-gray-700 p-6 rounded-lg shadow-2xl w-80 text-center transform transition-all"
+             x-transition:enter="scale-95"
+             x-transition:enter-end="scale-100">
+
+            <h3 class="text-white font-bold text-lg mb-4">Go to Page</h3>
+
+            <div class="flex items-center justify-center space-x-2 mb-6">
+                <input x-ref="gotoInput"
+                       type="number"
+                       x-model="gotoInputValue"
+                       @keydown.enter="submitGoto()"
+                       @keydown.escape="closeGoto()"
+                       min="1"
+                       :max="meta.page_count"
+                       class="bg-gray-800 text-white text-2xl font-bold w-24 text-center border-b-2 border-blue-500 focus:outline-none focus:border-blue-400 py-2 rounded-t"
+                >
+                <span class="text-gray-500 text-xl">/ <span x-text="meta.page_count"></span></span>
+            </div>
+
+            <div class="flex justify-between space-x-3">
+                <button @click="closeGoto()" class="flex-1 px-4 py-2 text-gray-400 hover:text-white hover:bg-white/10 rounded transition-colors">
+                    Cancel
+                </button>
+                <button @click="submitGoto()" class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded transition-colors">
+                    Go
+                </button>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 <script>
@@ -217,6 +258,8 @@ function reader() {
         meta: { page_count: 0, next_comic_id: null, prev_comic_id: null },
         showSettings: false,
         fitMode: 'contain',
+        showGoto: false,
+        gotoInputValue: 1,
 
         // Filter State
         filters: {
@@ -364,6 +407,14 @@ function reader() {
 
         // Centralized Key Handler
         handleKey(e) {
+
+            // If the user is typing in the GOTO box, we only want to listen for Escape.
+            // We ignore other shortcuts so they can type numbers properly.
+            if (this.showGoto) {
+                if (e.key === 'Escape') this.closeGoto();
+                return;
+            }
+
             // Ignore shortcuts if user is typing in a text box (future proofing)
             if (['INPUT', 'TEXTAREA'].includes(e.target.tagName) && e.target.type === 'text') return;
 
@@ -394,10 +445,20 @@ function reader() {
                     this.goToBook(this.meta.prev_comic_id);
                     break;
 
+                case 'g':
+                case 'G':
+                    e.preventDefault(); // Prevent accidental scrolling
+                    this.openGoto();
+                    break;
+
                 case 'Escape':
                     // Priority Logic for ESC
+                    if (this.showGoto) {
+                        this.closeGoto();
+                        return;
+                    }
 
-                    // 1. If Settings panel is open, close it first
+                    // If Settings panel is open, close it first
                     if (this.showSettings) {
                         this.showSettings = false;
                         return;
@@ -412,6 +473,37 @@ function reader() {
                     this.exitReader();
                     break;
             }
+        },
+
+        openGoto() {
+            this.showGoto = true;
+            this.gotoInputValue = this.currentPage + 1; // Convert 0-index to human readable
+
+            // Wait for x-show to render, then focus the input
+            this.$nextTick(() => {
+                this.$refs.gotoInput.focus();
+                this.$refs.gotoInput.select(); // Select text so they can overwrite immediately
+            });
+        },
+
+        closeGoto() {
+            this.showGoto = false;
+            // Return focus to main container so arrow keys work again immediately
+            this.$el.focus();
+        },
+
+        submitGoto() {
+            let page = parseInt(this.gotoInputValue);
+
+            // Validation
+            if (isNaN(page)) return;
+            if (page < 1) page = 1;
+            if (page > this.meta.page_count) page = this.meta.page_count;
+
+            // Update State (Convert back to 0-index)
+            this.currentPage = page - 1;
+            this.updateProgress();
+            this.closeGoto();
         },
 
     }
