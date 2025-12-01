@@ -1,0 +1,138 @@
+import logging
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger
+from sqlalchemy.orm import Session
+
+from app.database import SessionLocal
+from app.services.backup import BackupService
+from app.services.maintenance import MaintenanceService
+from app.models.setting import SystemSetting
+
+logger = logging.getLogger(__name__)
+
+
+class SchedulerService:
+    _instance = None
+    _scheduler = None
+
+    # TASK REGISTRY
+    # Centralized configuration for all system tasks.
+    # To add a new task, just add an entry here and a default in settings_service.py
+    _TASK_REGISTRY = {
+        "backup": {
+            "func": "run_backup_job",  # Name of the static method below
+            "default_interval": "weekly",
+            "default_hour": 2,  # 2 AM
+            "description": "System Backup"
+        },
+        "cleanup": {
+            "func": "run_cleanup_job",
+            "default_interval": "monthly",
+            "default_hour": 3,  # 3 AM
+            "description": "Orphan Cleanup"
+        }
+    }
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(SchedulerService, cls).__new__(cls)
+            cls._scheduler = BackgroundScheduler()
+        return cls._instance
+
+    def start(self):
+        """Start the scheduler if not already running."""
+        if not self._scheduler.running:
+            self._scheduler.start()
+            logger.info("Scheduler started.")
+            self.reschedule_jobs()
+
+    def stop(self):
+        """Shutdown the scheduler."""
+        if self._scheduler.running:
+            self._scheduler.shutdown()
+            logger.info("Scheduler stopped.")
+
+    def _get_setting_value(self, key: str, default: str) -> str:
+        """Helper to get a setting value from a fresh session."""
+        session: Session = SessionLocal()
+        try:
+            setting = session.query(SystemSetting).filter(SystemSetting.key == key).first()
+            return setting.value if setting else default
+        finally:
+            session.close()
+
+    def reschedule_jobs(self):
+        """
+        Dynamically configures jobs based on the registry and DB settings.
+        """
+        self._scheduler.remove_all_jobs()
+        logger.info("Rescheduling system tasks...")
+
+        for job_id, config in self._TASK_REGISTRY.items():
+            # 1. Construct the convention-based key
+            setting_key = f"system.task.{job_id}.interval"
+
+            # 2. Fetch value (or default)
+            interval = self._get_setting_value(setting_key, config["default_interval"])
+
+            if interval == "disabled":
+                continue
+
+            # 3. Get the actual function method
+            job_func = getattr(self, config["func"])
+
+            # 4. Schedule
+            trigger = self._get_trigger_for_interval(interval, hour=config["default_hour"])
+
+            self._scheduler.add_job(
+                job_func,
+                trigger=trigger,
+                id=job_id,
+                replace_existing=True
+            )
+            logger.info(f"Scheduled {config['description']}: {interval} (at {config['default_hour']}:00)")
+
+    @staticmethod
+    def _get_trigger_for_interval(interval: str, hour: int) -> CronTrigger:
+        """
+        Map simple string settings to CronTriggers.
+        """
+        if interval == "daily":
+            return CronTrigger(hour=hour, minute=0)
+        elif interval == "weekly":
+            return CronTrigger(day_of_week='mon', hour=hour, minute=0)
+        elif interval == "monthly":
+            return CronTrigger(day=1, hour=hour, minute=0)
+        else:
+            # Default fallback (Weekly)
+            return CronTrigger(day_of_week='mon', hour=hour, minute=0)
+
+    # --- JOB WRAPPERS ---
+    # These must be static or instance methods that create their own DB session
+
+    @staticmethod
+    def run_backup_job():
+        logger.info("Running Scheduled Backup...")
+        try:
+            service = BackupService()
+            result = service.create_backup()
+            logger.info(f"Backup Complete: {result['filename']}")
+        except Exception as e:
+            logger.error(f"Backup Failed: {e}")
+
+    @staticmethod
+    def run_cleanup_job():
+        logger.info("Running Scheduled Cleanup...")
+        session = SessionLocal()
+        try:
+            service = MaintenanceService(session)
+            stats = service.cleanup_orphans()
+            logger.info(f"Cleanup Complete: {stats}")
+        except Exception as e:
+            logger.error(f"Cleanup Failed: {e}")
+        finally:
+            session.close()
+
+
+# Singleton accessor
+scheduler_service = SchedulerService()
