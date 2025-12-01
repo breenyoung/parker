@@ -1,3 +1,4 @@
+import logging
 from sqlalchemy.orm import Session
 from typing import Optional, Dict
 
@@ -7,6 +8,7 @@ class CollectionService:
     def __init__(self, db: Session):
         self.db = db
         self.collection_cache: Dict[str, Collection] = {}
+        self.logger = logging.getLogger(__name__)
 
     def get_or_create_collection(self, name: str) -> Collection:
         name = name.strip()
@@ -21,6 +23,7 @@ class CollectionService:
             self.db.add(collection)
             self.db.flush()
             print(f"Created collection: {name}")
+            self.logger.debug(f"Created collection: {name}")
 
         self.collection_cache[name] = collection
         return collection

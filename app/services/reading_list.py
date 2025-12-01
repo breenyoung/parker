@@ -1,3 +1,4 @@
+import logging
 from sqlalchemy.orm import Session
 from typing import Optional, Dict
 from app.models import ReadingList, ReadingListItem, Comic
@@ -7,6 +8,7 @@ class ReadingListService:
     def __init__(self, db: Session):
         self.db = db
         self.list_cache: Dict[str, ReadingList] = {}
+        self.logger = logging.getLogger(__name__)
 
     def get_or_create_reading_list(self, name: str) -> ReadingList:
         name = name.strip()
@@ -21,6 +23,7 @@ class ReadingListService:
             self.db.add(reading_list)
             self.db.flush()
             print(f"Created reading list: {name}")
+            self.logger.debug(f"Created reading list: {name}")
 
         self.list_cache[name] = reading_list
         return reading_list
