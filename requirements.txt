@@ -29,4 +29,7 @@ lxml>=5.1.0
 #py7zr==0.20.8
 watchdog>=3.0.0
 
+# Task scheduling
+apscheduler>=3.11.1
+
 
