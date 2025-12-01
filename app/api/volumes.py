@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, case, Float
+from sqlalchemy import func, case, Float, Integer
 from typing import List, Annotated
 
 from app.core.comic_helpers import get_format_filters, get_smart_cover
@@ -48,7 +48,8 @@ async def get_volume_detail(volume_id: int, db: SessionDep, current_user: Curren
         func.min(Comic.year).label('start_year'),
         func.max(Comic.year).label('end_year'),
         func.max(Comic.publisher).label('publisher'),
-        func.max(Comic.imprint).label('imprint')
+        func.max(Comic.imprint).label('imprint'),
+        func.max(Comic.count).label('max_count')  # Get the highest 'Count' value found
     ).filter(Comic.volume_id == volume_id).first()
 
     # 2. Find Cover (Plain issues priority)
@@ -70,6 +71,37 @@ async def get_volume_detail(volume_id: int, db: SessionDep, current_user: Curren
         read_status = "in_progress"
     elif first_issue:
         resume_comic_id = first_issue.id
+
+    # Status & Missing Issues Calculation
+    status = "ongoing"
+    missing_issues = []
+    is_completed = False
+    expected_count = stats.max_count  # only calculate "Missing" if we have a valid Count > 0
+
+    if expected_count and expected_count > 0:
+        status = "ended"
+
+        # Fetch all existing "Plain" issue numbers for this volume
+        # We cast to Integer to ensure we are comparing numbers (1 vs 01)
+        # Note: This ignores ".5" or "10a" variants for the completion check,
+        # which is standard behavior for "Count" logic.
+        existing_numbers = db.query(func.cast(Comic.number, Integer)) \
+            .filter(Comic.volume_id == volume_id) \
+            .filter(is_plain) \
+            .all()
+
+        # Create sets for comparison
+        existing_set = set(row[0] for row in existing_numbers if row[0] is not None)
+        expected_set = set(range(1, expected_count + 1))
+
+        # Find the difference
+        missing_set = expected_set - existing_set
+
+        if not missing_set:
+            is_completed = True
+        else:
+            # Sort the missing numbers for display (e.g., [2, 3, 4])
+            missing_issues = sorted(list(missing_set))
 
 
     # 3. Aggregated Metadata (Scoped ONLY to this volume)
@@ -98,6 +130,12 @@ async def get_volume_detail(volume_id: int, db: SessionDep, current_user: Curren
         "total_issues": stats.plain_count,  # Use plain count as main count
         "annual_count": stats.annual_count,
         "special_count": stats.special_count,
+
+        # Status Fields
+        "status": status,  # "Ongoing" or "Ended"
+        "expected_count": expected_count,  # e.g. 12
+        "is_completed": is_completed,  # True if you have 1..12
+        "missing_issues": missing_issues,  # e.g. [5, 6] or []
 
         "publisher": stats.publisher,
         "imprint": stats.imprint,
