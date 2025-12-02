@@ -238,6 +238,8 @@ class LibraryScanner:
             day=int(metadata.get('day')) if metadata.get('day') else None,
             web=metadata.get('web'),
             notes=metadata.get('notes'),
+            age_rating=metadata.get('age_rating'),
+            language_iso=metadata.get('lang'),
 
             # Publishing
             publisher=metadata.get('publisher'),
@@ -331,6 +333,8 @@ class LibraryScanner:
         comic.day = int(metadata.get('day')) if metadata.get('day') else None
         comic.web = metadata.get('web')
         comic.notes = metadata.get('notes')
+        comic.age_rating = metadata.get('age_rating')
+        comic.language_iso = metadata.get('lang')
         comic.publisher = metadata.get('publisher')
         comic.imprint = metadata.get('imprint')
         comic.format = metadata.get('format')

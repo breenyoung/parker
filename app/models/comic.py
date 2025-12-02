@@ -40,6 +40,8 @@ class Comic(Base):
     day = Column(Integer)
     web = Column(String)
     notes = Column(Text)
+    age_rating = Column(String, nullable=True) # e.g. "Everyone"
+    language_iso = Column(String, nullable=True)  # e.g. "en", "jp"
 
     # Total issue count for the volume (from ComicInfo.xml <Count>)
     # Used to determine if a series is "Ended" and calculate missing issues.
