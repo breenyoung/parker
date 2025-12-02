@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from typing import List, Dict
-from app.models import Character, Team, Location
+from app.models import Character, Team, Location, Genre
 
 class TagService:
     """Service for managing tags with Caching and Deferred Commits"""
@@ -11,6 +11,7 @@ class TagService:
         self.character_cache: Dict[str, Character] = {}
         self.team_cache: Dict[str, Team] = {}
         self.location_cache: Dict[str, Location] = {}
+        self.genre_cache: Dict[str, Genre] = {}
 
     def get_or_create_character(self, name: str) -> Character:
         name = name.strip()
@@ -89,3 +90,31 @@ class TagService:
         name_list = [n.strip() for n in names.split(',') if n.strip()]
         unique_names = list(dict.fromkeys(name_list))
         return [self.get_or_create_location(n) for n in unique_names if n]
+
+
+    def get_or_create_genre(self, name: str) -> Genre:
+
+        name = name.strip()
+        if not name:
+            return None
+
+        if name in self.genre_cache:
+            return self.genre_cache[name]
+
+        genre = self.db.query(Genre).filter(Genre.name == name).first()
+        if not genre:
+            genre = Genre(name=name)
+            self.db.add(genre)
+            self.db.flush()
+
+        self.genre_cache[name] = genre
+        return genre
+
+    def get_or_create_genres(self, names: str) -> List[Genre]:
+        if not names:
+            return []
+
+        name_list = [n.strip() for n in names.split(',') if n.strip()]
+        unique_names = list(dict.fromkeys(name_list))
+        return [self.get_or_create_genre(n) for n in unique_names if n]
+

@@ -20,6 +20,8 @@ def parse_comicinfo(xml_content: bytes) -> Dict[str, Any]:
             'title': get_text('Title'),
             'summary': get_text('Summary'),
             'count': get_text('Count'),
+            'age_rating': get_text('AgeRating'),
+            'lang': get_text('LanguageISO'),
 
             # Date
             'year': get_text('Year'),
@@ -49,6 +51,7 @@ def parse_comicinfo(xml_content: bytes) -> Dict[str, Any]:
             'characters': get_text('Characters'),
             'teams': get_text('Teams'),
             'locations': get_text('Locations'),
+            'genre': get_text('Genre'),
 
             # Reading lists
             'alternate_series': get_text('AlternateSeries'),

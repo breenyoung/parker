@@ -238,6 +238,8 @@ class LibraryScanner:
             day=int(metadata.get('day')) if metadata.get('day') else None,
             web=metadata.get('web'),
             notes=metadata.get('notes'),
+            age_rating=metadata.get('age_rating'),
+            language_iso=metadata.get('lang'),
 
             # Publishing
             publisher=metadata.get('publisher'),
@@ -278,6 +280,9 @@ class LibraryScanner:
 
         if metadata.get('locations'):
             comic.locations = self.tag_service.get_or_create_locations(metadata.get('locations'))
+
+        if metadata.get('genre'):
+            comic.genres = self.tag_service.get_or_create_genres(metadata.get('genre'))
 
         # Reading lists
         self.reading_list_service.update_comic_reading_lists(
@@ -328,6 +333,8 @@ class LibraryScanner:
         comic.day = int(metadata.get('day')) if metadata.get('day') else None
         comic.web = metadata.get('web')
         comic.notes = metadata.get('notes')
+        comic.age_rating = metadata.get('age_rating')
+        comic.language_iso = metadata.get('lang')
         comic.publisher = metadata.get('publisher')
         comic.imprint = metadata.get('imprint')
         comic.format = metadata.get('format')
@@ -354,6 +361,8 @@ class LibraryScanner:
             comic.teams = self.tag_service.get_or_create_teams(metadata.get('teams'))
         if metadata.get('locations'):
             comic.locations = self.tag_service.get_or_create_locations(metadata.get('locations'))
+        if metadata.get('genre'):
+            comic.genres = self.tag_service.get_or_create_genres(metadata.get('genre'))
 
         self.reading_list_service.update_comic_reading_lists(
             comic,

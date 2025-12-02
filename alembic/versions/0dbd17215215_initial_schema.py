@@ -1,8 +1,8 @@
 """Initial Schema
 
-Revision ID: 036370b0e945
+Revision ID: 0dbd17215215
 Revises: 
-Create Date: 2025-12-01 19:50:11.134664
+Create Date: 2025-12-02 16:03:06.654885
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '036370b0e945'
+revision: str = '0dbd17215215'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -41,6 +41,15 @@ def upgrade() -> None:
     with op.batch_alter_table('collections', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('ix_collections_id'), ['id'], unique=False)
         batch_op.create_index(batch_op.f('ix_collections_name'), ['name'], unique=True)
+
+    op.create_table('genres',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('name', sa.String(), nullable=False),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('name')
+    )
+    with op.batch_alter_table('genres', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_genres_id'), ['id'], unique=False)
 
     op.create_table('libraries',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -127,6 +136,19 @@ def upgrade() -> None:
         batch_op.create_index(batch_op.f('ix_users_email'), ['email'], unique=True)
         batch_op.create_index(batch_op.f('ix_users_id'), ['id'], unique=False)
         batch_op.create_index(batch_op.f('ix_users_username'), ['username'], unique=True)
+
+    op.create_table('pull_lists',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('user_id', sa.Integer(), nullable=False),
+    sa.Column('name', sa.String(), nullable=False),
+    sa.Column('description', sa.Text(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.Column('updated_at', sa.DateTime(), nullable=True),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
+    with op.batch_alter_table('pull_lists', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_pull_lists_id'), ['id'], unique=False)
 
     op.create_table('saved_searches',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -266,6 +288,13 @@ def upgrade() -> None:
         batch_op.create_index(batch_op.f('ix_comic_credits_id'), ['id'], unique=False)
         batch_op.create_index(batch_op.f('ix_comic_credits_role'), ['role'], unique=False)
 
+    op.create_table('comic_genres',
+    sa.Column('comic_id', sa.Integer(), nullable=False),
+    sa.Column('genre_id', sa.Integer(), nullable=False),
+    sa.ForeignKeyConstraint(['comic_id'], ['comics.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['genre_id'], ['genres.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('comic_id', 'genre_id')
+    )
     op.create_table('comic_locations',
     sa.Column('comic_id', sa.Integer(), nullable=False),
     sa.Column('location_id', sa.Integer(), nullable=False),
@@ -280,6 +309,19 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['team_id'], ['teams.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('comic_id', 'team_id')
     )
+    op.create_table('pull_list_items',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('pull_list_id', sa.Integer(), nullable=False),
+    sa.Column('comic_id', sa.Integer(), nullable=False),
+    sa.Column('sort_order', sa.Integer(), nullable=False),
+    sa.ForeignKeyConstraint(['comic_id'], ['comics.id'], ),
+    sa.ForeignKeyConstraint(['pull_list_id'], ['pull_lists.id'], ),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('pull_list_id', 'comic_id', name='uq_pull_list_item')
+    )
+    with op.batch_alter_table('pull_list_items', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_pull_list_items_id'), ['id'], unique=False)
+
     op.create_table('reading_list_items',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('reading_list_id', sa.Integer(), nullable=False),
@@ -327,8 +369,13 @@ def downgrade() -> None:
         batch_op.drop_index(batch_op.f('ix_reading_list_items_id'))
 
     op.drop_table('reading_list_items')
+    with op.batch_alter_table('pull_list_items', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_pull_list_items_id'))
+
+    op.drop_table('pull_list_items')
     op.drop_table('comic_teams')
     op.drop_table('comic_locations')
+    op.drop_table('comic_genres')
     with op.batch_alter_table('comic_credits', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_comic_credits_role'))
         batch_op.drop_index(batch_op.f('ix_comic_credits_id'))
@@ -363,6 +410,10 @@ def downgrade() -> None:
         batch_op.drop_index(batch_op.f('ix_saved_searches_id'))
 
     op.drop_table('saved_searches')
+    with op.batch_alter_table('pull_lists', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_pull_lists_id'))
+
+    op.drop_table('pull_lists')
     with op.batch_alter_table('users', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_users_username'))
         batch_op.drop_index(batch_op.f('ix_users_id'))
@@ -398,6 +449,10 @@ def downgrade() -> None:
         batch_op.drop_index(batch_op.f('ix_libraries_id'))
 
     op.drop_table('libraries')
+    with op.batch_alter_table('genres', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_genres_id'))
+
+    op.drop_table('genres')
     with op.batch_alter_table('collections', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_collections_name'))
         batch_op.drop_index(batch_op.f('ix_collections_id'))
