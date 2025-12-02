@@ -8,6 +8,7 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+from app.core.templates import templates
 from app.database import engine, Base
 from app.config import settings
 from app.database import SessionLocal
@@ -132,22 +133,7 @@ app.add_middleware(
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# Templates
-templates = Jinja2Templates(directory="app/templates")
 
-# URL Helper for Jinja
-def url_builder(path: str) -> str:
-    """
-    Jinja helper to prefix paths with BASE_URL.
-    Usage: {{ url('/static/css/style.css') }}
-    """
-    base = settings.clean_base_url
-    clean_path = path.lstrip("/")
-    return f"{base}/{clean_path}" if base else f"/{clean_path}"
-
-# Inject URL data into Templates
-templates.env.globals["url"] = url_builder
-templates.env.globals["base_url"] = settings.clean_base_url
 
 # Global exception handler
 @app.exception_handler(HTTPException)
