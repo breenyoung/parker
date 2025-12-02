@@ -86,7 +86,7 @@ async def lifespan(app: FastAPI):
     # --------------------------------------
 
     # Setup logging
-    log_level = "info" #await get_log_level_from_db()
+    log_level = "info" #await get_log_level_from_db() # TODO
     logger = log_config.setup_logging("INFO")
     logger.info("Application starting up")
 
