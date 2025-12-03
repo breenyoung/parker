@@ -68,7 +68,9 @@ async def get_search_suggestions(
         results = db.query(ReadingList.name).filter(ReadingList.name.ilike(f"%{query}%")).limit(10).all()
 
     elif field == 'pull_list':
-        results = db.query(PullList.name).filter(PullList.name.ilike(f"%{query}%")).limit(10).all()
+        results = (db.query(PullList.name)
+                   .filter(PullList.name.ilike(f"%{query}%"), PullList.user_id == current_user.id)
+                   .limit(10).all())
 
     # Flatten list of tuples [('Name',), ...] -> ['Name', ...]
     return [r[0] for r in results if r[0]]
@@ -121,7 +123,9 @@ async def quick_search(
     results["locations"] = [{"id": l.id, "name": l.name} for l in locs_objs]
 
     # 6. Pull Lists
-    pull_list_objs = db.query(PullList).filter(PullList.name.ilike(q_str)).limit(limit).all()
+    pull_list_objs =(db.query(PullList)
+                     .filter(PullList.name.ilike(q_str), PullList.user_id == current_user.id)
+                     .limit(limit).all())
     results['pull_lists'] = [{"id": p.id, "name": p.name} for p in pull_list_objs]
 
     return results
