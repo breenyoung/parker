@@ -5,7 +5,7 @@
 {% block content %}
 <div class="space-y-6" x-data="readingListDetail()">
     <div class="flex items-center space-x-4">
-        <a href="/reading-lists" class="text-blue-400 hover:text-blue-300">
+        <a :href="window.url('/reading-lists')" class="text-blue-400 hover:text-blue-300">
             ← Back to Reading Lists
         </a>
     </div>
@@ -15,6 +15,7 @@
     </div>
 
     <div x-show="!loading && readingList" style="display: none;">
+
         <div class="bg-gray-800 rounded-lg p-6 mb-6 shadow-lg border-l-4 border-l-green-500">
             <div class="flex items-start justify-between">
                 <div class="flex-1">
@@ -33,11 +34,103 @@
             </div>
         </div>
 
-        <div class="space-y-4">
+        <div class="border-b border-gray-700 mb-6 flex gap-6">
+            <button
+                x-on:click="activeTab = 'comics'"
+                class="pb-3 px-1 border-b-2 font-medium transition-colors"
+                :class="activeTab === 'comics' ? 'border-blue-500 text-white' : 'border-transparent text-gray-400 hover:text-white'"
+            >
+                Comics
+            </button>
+            <button
+                x-on:click="activeTab = 'details'"
+                class="pb-3 px-1 border-b-2 font-medium transition-colors"
+                :class="activeTab === 'details' ? 'border-blue-500 text-white' : 'border-transparent text-gray-400 hover:text-white'"
+            >
+                Details
+            </button>
+        </div>
+
+        <div x-show="activeTab === 'comics'" class="space-y-4">
             <template x-for="(comic, index) in readingList?.comics" :key="comic.id">
-            {% include "partials/reading_list_item.html" %}
+                {% include "partials/reading_list_item.html" %}
+            </template>
+
+            <div x-show="readingList?.comics?.length === 0" class="text-gray-500 italic">
+                No comics in this list.
+            </div>
+        </div>
+
+        <div x-show="activeTab === 'details'" class="space-y-8 bg-gray-800 p-6 rounded-lg border border-gray-700">
+
+            <template x-if="readingList?.details?.writers?.length > 0">
+                <div>
+                    <h3 class="text-lg font-bold mb-3 text-gray-200">Writers</h3>
+                    <div class="flex flex-wrap gap-2">
+                        <template x-for="name in readingList.details.writers" :key="name">
+                            {% with type='writer', item='name' %}
+                                {% include "partials/tag_chip.html" %}
+                            {% endwith %}
+                        </template>
+                    </div>
+                </div>
+            </template>
+
+            <template x-if="readingList?.details?.pencillers?.length > 0">
+                <div>
+                    <h3 class="text-lg font-bold mb-3 text-gray-200">Pencillers</h3>
+                    <div class="flex flex-wrap gap-2">
+                        <template x-for="name in readingList.details.pencillers" :key="name">
+                            {% with type='penciller', item='name' %}
+                                {% include "partials/tag_chip.html" %}
+                            {% endwith %}
+                        </template>
+                    </div>
+                </div>
+            </template>
+
+            <div class="border-t border-gray-700 my-6"></div>
+
+            <template x-if="readingList?.details?.characters?.length > 0">
+                <div>
+                    <h3 class="text-lg font-bold mb-3 text-gray-200">Characters</h3>
+                    <div class="flex flex-wrap gap-2">
+                        <template x-for="name in readingList.details.characters" :key="name">
+                            {% with type='character', item='name' %}
+                                {% include "partials/tag_chip.html" %}
+                            {% endwith %}
+                        </template>
+                    </div>
+                </div>
+            </template>
+
+            <template x-if="readingList?.details?.teams?.length > 0">
+                <div>
+                    <h3 class="text-lg font-bold mb-3 text-gray-200">Teams</h3>
+                    <div class="flex flex-wrap gap-2">
+                        <template x-for="name in readingList.details.teams" :key="name">
+                            {% with type='team', item='name' %}
+                                {% include "partials/tag_chip.html" %}
+                            {% endwith %}
+                        </template>
+                    </div>
+                </div>
+            </template>
+
+            <template x-if="readingList?.details?.locations?.length > 0">
+                <div>
+                    <h3 class="text-lg font-bold mb-3 text-gray-200">Locations</h3>
+                    <div class="flex flex-wrap gap-2">
+                        <template x-for="name in readingList.details.locations" :key="name">
+                            {% with type='location', item='name' %}
+                                {% include "partials/tag_chip.html" %}
+                            {% endwith %}
+                        </template>
+                    </div>
+                </div>
             </template>
         </div>
+
     </div>
 </div>
 
@@ -47,10 +140,11 @@ function readingListDetail() {
         readingList: null,
         loading: true,
         readingListId: {{ reading_list_id }},
+        activeTab: 'comics',
 
         async init() {
             try {
-                const res = await fetch(`/api/reading-lists/${this.readingListId}`);
+                const res = await fetch(window.url(`/api/reading-lists/${this.readingListId}`));
                 if (!res.ok) throw new Error('Not found');
                 this.readingList = await res.json();
                 document.title = `${this.readingList.name} - Comic Server`;
@@ -63,7 +157,7 @@ function readingListDetail() {
 
         startReading() {
             if (this.readingList?.comics?.length > 0) {
-                window.location.href = `/reader/${this.readingList.comics[0].id}?context_type=reading_list&context_id=${this.readingList.id}`;
+                window.location.href = window.url(`/reader/${this.readingList.comics[0].id}?context_type=reading_list&context_id=${this.readingList.id}`);
             }
         }
     }

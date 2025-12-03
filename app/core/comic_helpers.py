@@ -1,5 +1,9 @@
 from sqlalchemy import func, or_, not_, case
-from app.models.comic import Comic
+
+from app.api.deps import SessionDep
+from app.models.comic import Comic, Volume
+from app.models.tags import Character, Team, Location, Genre
+from app.models.credits import Person, ComicCredit
 
 # Centralized list of non-standard formats
 NON_PLAIN_FORMATS = [
@@ -107,3 +111,54 @@ def get_format_weight(fmt_string: str) -> int:
         return 3
 
     return 1
+
+
+# Aggregation Helper
+def get_aggregated_metadata(
+        db: SessionDep,
+        model,
+        context_join_model,
+        context_filter_col,
+        context_id: int,
+        role_filter: str = None
+):
+    """
+    Generic helper to fetch distinct metadata (Writers, Characters, etc.)
+    for a group of comics (Reading List, Collection, etc).
+
+    Args:
+        db: Database Session
+        model: The target metadata model (Person, Character, Team)
+        context_join_model: The junction table (ReadingListItem, CollectionItem)
+        context_filter_col: The column to filter by (ReadingListItem.reading_list_id)
+        context_id: The ID of the list/collection
+        role_filter: Optional role for Credits (e.g. 'writer')
+    """
+    query = db.query(model.name)
+
+    # 1. Join Strategy based on Target Metadata Model
+    if model == Person:
+        # Person -> ComicCredit -> Comic
+        query = query.join(ComicCredit).join(Comic)
+        if role_filter:
+            query = query.filter(ComicCredit.role == role_filter)
+    else:
+        # Tags (Many-to-Many relationships on Comic)
+        # Note: We join FROM the tag TO the comic
+        if model == Character:
+            query = query.join(Comic.characters)
+        elif model == Team:
+            query = query.join(Comic.teams)
+        elif model == Location:
+            query = query.join(Comic.locations)
+        elif model == Genre:
+            query = query.join(Comic.genres)
+
+    # 2. Join Context (The List/Collection Item table)
+    # We join the context model to the Comic
+    query = query.join(context_join_model, context_join_model.comic_id == Comic.id)
+
+    # 3. Apply Filter
+    query = query.filter(context_filter_col == context_id)
+
+    return sorted([r[0] for r in query.distinct().all()])

@@ -4,10 +4,15 @@ from sqlalchemy import func
 from typing import List, Optional
 from pydantic import BaseModel
 
+from app.core.comic_helpers import get_aggregated_metadata
 from app.api.deps import SessionDep, CurrentUser
 from app.models.pull_list import PullList, PullListItem
 from app.models.comic import Comic
 from app.models.series import Series  # Useful for joins if optimizing
+from app.models.tags import Character, Team, Location
+from app.models.credits import Person, ComicCredit
+
+
 from app.schemas.pull_list import PullListCreate, PullListUpdate, AddComicRequest, ReorderRequest
 
 router = APIRouter()
@@ -63,12 +68,22 @@ def get_list_details(list_id: int, db: SessionDep, current_user: CurrentUser):
             "read": False  # You could join ReadingProgress here if desired
         })
 
+    # Aggregated Metadata
+    details = {
+        "writers": get_aggregated_metadata(db, Person, PullListItem, PullListItem.pull_list_id, list_id, 'writer'),
+        "pencillers": get_aggregated_metadata(db, Person, PullListItem, PullListItem.pull_list_id, list_id,'penciller'),
+        "characters": get_aggregated_metadata(db, Character, PullListItem, PullListItem.pull_list_id, list_id),
+        "teams": get_aggregated_metadata(db, Team, PullListItem, PullListItem.pull_list_id, list_id),
+        "locations": get_aggregated_metadata(db, Location, PullListItem, PullListItem.pull_list_id, list_id)
+    }
+
     return {
         "id": plist.id,
         "name": plist.name,
         "description": plist.description,
         "created_at": plist.created_at,
-        "items": items_data
+        "items": items_data,
+        "details": details
     }
 
 

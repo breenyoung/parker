@@ -1,10 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import Float, func
 from typing import List, Annotated
 
+from app.core.comic_helpers import get_aggregated_metadata
 from app.api.deps import get_db, get_current_user
 from app.models.collection import Collection, CollectionItem
-from app.models.comic import Comic
+from app.models.comic import Comic, Volume
+from app.models.series import Series
+from app.models.tags import Character, Team, Location
+from app.models.credits import Person
 from app.models.user import User
 
 router = APIRouter()
@@ -37,15 +42,26 @@ async def list_collections(current_user: Annotated[User, Depends(get_current_use
 @router.get("/{collection_id}")
 async def get_collection(current_user: Annotated[User, Depends(get_current_user)],
                          collection_id: int, db: Session = Depends(get_db)):
-    """Get a specific collection with all comics"""
+    """Get a specific collection with all comics and aggregated details"""
     collection = db.query(Collection).filter(Collection.id == collection_id).first()
 
     if not collection:
         raise HTTPException(status_code=404, detail="Collection not found")
 
-    # Get all comics (no specific order)
+    # 1. Get Comics (Sorted Chronologically)
+    # Sort: Year -> Series Name -> Issue Number
+    items = db.query(CollectionItem).join(Comic).join(Volume).join(Series) \
+        .options(joinedload(CollectionItem.comic).joinedload(Comic.volume).joinedload(Volume.series)) \
+        .filter(CollectionItem.collection_id == collection_id) \
+        .order_by(
+        Comic.year.asc(),
+        Series.name.asc(),
+        func.cast(Comic.number, Float)
+    ).all()
+
     comics = []
-    for item in collection.items:
+    for item in items:
+        if not item.comic: continue
         comic = item.comic
         comics.append({
             "id": comic.id,
@@ -68,7 +84,14 @@ async def get_collection(current_user: Annotated[User, Depends(get_current_user)
         "comic_count": len(comics),
         "comics": comics,
         "created_at": collection.created_at,
-        "updated_at": collection.updated_at
+        "updated_at": collection.updated_at,
+        "details": {
+            "writers": get_aggregated_metadata(db, Person, CollectionItem, CollectionItem.collection_id, collection_id,'writer'),
+            "pencillers": get_aggregated_metadata(db, Person, CollectionItem, CollectionItem.collection_id, collection_id, 'penciller'),
+            "characters": get_aggregated_metadata(db, Character, CollectionItem, CollectionItem.collection_id, collection_id),
+            "teams": get_aggregated_metadata(db, Team, CollectionItem, CollectionItem.collection_id, collection_id),
+            "locations": get_aggregated_metadata(db, Location, CollectionItem, CollectionItem.collection_id, collection_id)
+        }
     }
 
 

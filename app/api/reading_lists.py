@@ -1,6 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import joinedload
 
 from app.api.deps import SessionDep, CurrentUser
+from app.core.comic_helpers import get_aggregated_metadata
+from app.models.comic import Comic, Volume
+from app.models.tags import Character, Team, Location
+from app.models.credits import Person, ComicCredit
 from app.models.reading_list import ReadingList, ReadingListItem
 
 router = APIRouter()
@@ -37,9 +42,16 @@ async def get_reading_list(list_id: int, db: SessionDep, current_user: CurrentUs
     if not reading_list:
         raise HTTPException(status_code=404, detail="Reading list not found")
 
-    # Get comics in order
+    # 1. Get comics (Ordered by Position)
+    # We join Comic to ensure we can access fields efficiently
+    items = db.query(ReadingListItem).options(
+        joinedload(ReadingListItem.comic).joinedload(Comic.volume).joinedload(Volume.series)) \
+        .filter(ReadingListItem.reading_list_id == list_id) \
+        .order_by(ReadingListItem.position).all()
+
     comics = []
-    for item in reading_list.items:
+    for item in items:
+        if not item.comic: continue
         comic = item.comic
         comics.append({
             "position": item.position,
@@ -63,9 +75,15 @@ async def get_reading_list(list_id: int, db: SessionDep, current_user: CurrentUs
         "comic_count": len(comics),
         "comics": comics,
         "created_at": reading_list.created_at,
-        "updated_at": reading_list.updated_at
+        "updated_at": reading_list.updated_at,
+        "details": {
+            "writers": get_aggregated_metadata(db, Person, ReadingListItem, ReadingListItem.reading_list_id, list_id,'writer'),
+            "pencillers": get_aggregated_metadata(db, Person, ReadingListItem, ReadingListItem.reading_list_id, list_id,'penciller'),
+            "characters": get_aggregated_metadata(db, Character, ReadingListItem, ReadingListItem.reading_list_id,list_id),
+            "teams": get_aggregated_metadata(db, Team, ReadingListItem, ReadingListItem.reading_list_id, list_id),
+            "locations": get_aggregated_metadata(db, Location, ReadingListItem, ReadingListItem.reading_list_id, list_id)
+        }
     }
-
 
 @router.delete("/{list_id}")
 async def delete_reading_list(list_id: int, db: SessionDep, current_user: CurrentUser):

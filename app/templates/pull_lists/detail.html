@@ -16,7 +16,7 @@
     
     <div class="mb-8">
         <div class="flex items-center space-x-2 text-gray-400 mb-4 text-sm">
-            <a href="/pull-lists" class="hover:text-white">Pull Lists</a>
+            <a :href="window.url('/pull-lists')" class="hover:text-white">Pull Lists</a>
             <span>/</span>
             <span class="text-white" x-text="list?.name"></span>
         </div>
@@ -32,13 +32,13 @@
 
             <div class="flex gap-3">
                 <template x-if="list?.items?.length > 0">
-                    <a :href="`/reader/${list.items[0].id}?context_type=pull_list&context_id=${listId}`" 
+                    <a :href="window.url(`/reader/${list.items[0].id}?context_type=pull_list&context_id=${listId}`)"
                        class="bg-green-600 hover:bg-green-500 text-white px-6 py-3 rounded-full font-bold transition-colors flex items-center gap-2 shadow-lg hover:shadow-green-900/20">
                         <span class="text-xl">▶</span> Start Reading
                     </a>
                 </template>
                 
-                <button @click="openEditModal()" class="bg-gray-700 hover:bg-gray-600 text-white p-3 rounded-full transition-colors" title="Edit List Details">
+                <button x-on:click="openEditModal()" class="bg-gray-700 hover:bg-gray-600 text-white p-3 rounded-full transition-colors" title="Edit List Details">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                     </svg>
@@ -47,6 +47,24 @@
         </div>
     </div>
 
+    <div class="border-b border-gray-700 mb-6 flex gap-6">
+        <button
+            x-on:click="activeTab = 'items'"
+            class="pb-3 px-1 border-b-2 font-medium transition-colors"
+            :class="activeTab === 'items' ? 'border-blue-500 text-white' : 'border-transparent text-gray-400 hover:text-white'"
+        >
+            Comics
+        </button>
+        <button
+            x-on:click="activeTab = 'details'"
+            class="pb-3 px-1 border-b-2 font-medium transition-colors"
+            :class="activeTab === 'details' ? 'border-blue-500 text-white' : 'border-transparent text-gray-400 hover:text-white'"
+        >
+            Details
+        </button>
+    </div>
+
+    <div x-show="activeTab === 'items'">
     <div x-show="!loading" class="space-y-2" id="sortable-list">
         <template x-for="(item, index) in list?.items" :key="item.item_id">
 
@@ -92,6 +110,23 @@
             List is empty. Go browse and add some comics!
         </div>
     </div>
+    </div>
+
+    <div x-show="activeTab === 'details'" class="space-y-8 bg-gray-800 p-6 rounded-lg border border-gray-700">
+        <template x-if="list?.details?.writers?.length > 0">
+            <div>
+                <h3 class="text-lg font-bold mb-3 text-gray-200">Writers</h3>
+                <div class="flex flex-wrap gap-2">
+                    <template x-for="name in list.details.writers" :key="name">
+                        {% with type='writer', item='name' %}
+                            {% include "partials/tag_chip.html" %}
+                        {% endwith %}
+                    </template>
+                </div>
+            </div>
+        </template>
+    </div>
+
 
     <div x-show="showEditModal" style="display: none;" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
          x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
@@ -171,6 +206,7 @@ function pullListDetail() {
         // Delete Modal State
         showDeleteModal: false,
         itemToDelete: null,
+        activeTab: 'items',
 
         async init() {
             await this.loadList();
