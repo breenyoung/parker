@@ -56,6 +56,7 @@ async def lifespan(app: FastAPI):
     Path("storage/database").mkdir(parents=True, exist_ok=True)
     settings.cache_dir.mkdir(parents=True, exist_ok=True)
     settings.cover_dir.mkdir(parents=True, exist_ok=True)
+    settings.avatar_dir.mkdir(parents=True, exist_ok=True)
 
     # Create database tables (models are now imported)
     Base.metadata.create_all(bind=engine)

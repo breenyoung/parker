@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Annotated
 from io import BytesIO
 from PIL import Image, ImageFilter, ImageOps
 import logging
@@ -12,7 +12,8 @@ class ImageService:
     """Service for extracting and processing comic images"""
 
     def __init__(self):
-        self.thumbnail_size = settings.thumbnail_size
+        self.thumbnail_size: tuple[float, float] = settings.thumbnail_size
+        self.avatar_size: tuple[float, float] = settings.avatar_size
 
     def get_page_image(self, comic_path: str, page_index: int,
                        sharpen: bool = False,
@@ -138,4 +139,36 @@ class ImageService:
 
         except Exception as e:
             print(f"Error generating thumbnail for {comic_path}: {e}")
+            return False
+
+    # Avatar Processing Logic
+    def process_avatar(self, image_data: bytes, output_path: Path) -> bool:
+        """
+        Process a raw avatar upload:
+        1. Fix Orientation (EXIF)
+        2. Normalize Color (RGB/RGBA)
+        3. Resize to standard avatar size
+        4. Save as WebP
+        """
+        try:
+            img = Image.open(BytesIO(image_data))
+
+            # 1. Fix Orientation (Phone selfies often have rotation flags)
+            img = ImageOps.exif_transpose(img)
+
+            # 2. Convert to RGB/RGBA (Handle PNGs, BMPs, etc)
+            if img.mode not in ("RGB", "RGBA"):
+                img = img.convert("RGBA")
+
+            # 3. Resize (Maintain Aspect Ratio)
+            img.thumbnail(self.avatar_size, Image.Resampling.LANCZOS)
+
+            # 4. Save
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            img.save(output_path, "WEBP", quality=85)
+
+            return True
+        except Exception as e:
+            raise ValueError(e)
+            logging.error(f"Avatar processing error: {e}")
             return False
