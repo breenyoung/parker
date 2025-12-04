@@ -6,7 +6,7 @@
 <div class="max-w-6xl mx-auto" x-data="comicDetail()">
     
     <div class="flex items-center space-x-2 text-gray-400 mb-6 text-sm" x-show="!error" x-cloak>
-        <a :href="window.url(`/library/${series?.library_id}`)" class="hover:text-white">Library</a>
+        <a :href="window.url(`/library/${comic?.library_id}`)" class="hover:text-white" x-text="comic?.library_name"></a>
         <span>/</span>
         <a :href="window.url(`/series/${comic?.series_id}`)" class="hover:text-blue-400" x-text="comic?.series || 'Series'"></a>
         <span>/</span>
@@ -297,7 +297,7 @@ function comicDetail() {
                 if (!res.ok) throw new Error("Comic not found");
                 this.comic = await res.json();
                 this.loading = false;
-                document.title = `${this.comic.series} #${this.comic.number} - Comic Server`;
+                document.title = `${this.comic?.series} #${this.comic?.number} - Comic Server`;
             } catch (e) {
                 console.error(e);
             }
