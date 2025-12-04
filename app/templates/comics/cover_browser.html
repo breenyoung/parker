@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+
+{% block title %}Cover Browser - Comic Server{% endblock %}
+
+{% block extra_head %}
+<style>
+    body { overflow: hidden; background: #050505; }
+    [x-cloak] { display: none !important; }
+    
+    .browser-container { position: fixed; inset: 0; display: flex; flex-direction: column; z-index: 100; }
+
+    .grid-view {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 2rem;
+        padding: 2rem;
+        overflow-y: auto;
+        height: 100%;
+    }
+
+    .theater-view {
+        flex: 1; display: flex; align-items: center; justify-content: center;
+        overflow: hidden; position: relative;
+    }
+
+    /* Zoom Modal */
+    .zoom-container {
+        position: fixed; inset: 0; z-index: 200;
+        background: rgba(0,0,0,0.95);
+        overflow: auto; /* Allow native scrolling */
+        display: flex; justify-content: center; align-items: flex-start;
+        cursor: zoom-out;
+    }
+    .zoom-image {
+        margin: auto;
+        max-width: none; /* Allow overflowing */
+        box-shadow: 0 0 50px rgba(0,0,0,0.5);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="browser-container" x-data="coverBrowser()" tabindex="0" x-on:keydown.window="handleKey($event)">
+
+    <div class="bg-gray-900/90 backdrop-blur border-b border-gray-800 p-4 flex justify-between items-center z-50">
+        <div class="flex items-center gap-4">
+            <button x-on:click="exit()" class="text-gray-400 hover:text-white flex items-center gap-1">
+                <span>✕</span> Close
+            </button>
+            <div class="w-px h-6 bg-gray-700"></div>
+            <div class="flex flex-col">
+                <span class="font-bold text-white text-sm" x-text="contextLabel"></span>
+                <span class="text-xs text-blue-400" x-text="`${currentIndex + 1} / ${items.length}`"></span>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <button x-show="mode === 'theater'" @click="zoomMode = true" class="text-gray-400 hover:text-white transition-colors" title="Zoom / Inspect (z)">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                </svg>
+            </button>
+
+            <div class="w-px h-6 bg-gray-700 mx-2" x-show="mode === 'theater'"></div>
+
+            <button x-on:click="mode = 'grid'" :class="mode === 'grid' ? 'text-blue-400' : 'text-gray-400 hover:text-white'" title="Grid View (g)">
+                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
+            </button>
+            <button x-on:click="mode = 'theater'" :class="mode === 'theater' ? 'text-blue-400' : 'text-gray-400 hover:text-white'" title="Theater View (t)">
+                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+            </button>
+        </div>
+    </div>
+
+    <div x-show="mode === 'grid'" class="grid-view scrollbar-thin">
+        <template x-for="(item, index) in items" :key="item.comic_id">
+            <div x-on:click="goToIndex(index)" class="cursor-pointer group flex flex-col items-center">
+                <div class="aspect-[2/3] w-full relative rounded-lg overflow-hidden border border-gray-700 group-hover:border-blue-500 transition-all shadow-lg group-hover:scale-105">
+                    <img :src="item.thumbnail_url" loading="lazy" class="w-full h-full object-cover">
+                    <div x-show="index === currentIndex" class="absolute inset-0 border-4 border-blue-500/50"></div>
+                </div>
+                <span class="mt-2 text-xs text-gray-400 text-center truncate w-full" x-text="item.label"></span>
+            </div>
+        </template>
+    </div>
+
+    <div x-show="mode === 'theater'" class="theater-view" @click="handleZoneClick($event)">
+
+        <div class="absolute inset-y-0 left-0 w-1/4 cursor-pointer z-10 hover:bg-white/5 transition-colors"></div>
+        <div class="absolute inset-y-0 right-0 w-1/4 cursor-pointer z-10 hover:bg-white/5 transition-colors"></div>
+
+        <div class="flex items-center justify-center gap-1 transition-all duration-300">
+
+            <template x-for="img in currentImages" :key="img.comic_id">
+                <div class="relative shadow-2xl rounded-sm transition-transform duration-200"
+                     :class="doublePage ? 'max-w-[45vw]' : 'max-w-[90vw]'">
+
+                    <img :src="img.thumbnail_url"
+                         class="absolute inset-0 w-full h-full object-contain blur-sm brightness-50 z-0">
+
+                    <img :src="window.url(`/api/reader/${img.comic_id}/page/0`)"
+                         class="relative z-10 max-h-[85vh] object-contain"
+                         onload="this.previousElementSibling.style.display='none'"
+                    >
+                </div>
+            </template>
+
+        </div>
+
+        <div class="absolute bottom-8 bg-black/70 backdrop-blur px-4 py-2 rounded-full text-sm text-gray-200 border border-gray-700 z-20">
+            <span x-text="currentImages.map(i => i.label).join('  |  ')"></span>
+        </div>
+    </div>
+
+    <div x-show="zoomMode" class="zoom-container" @click.self="zoomMode = false" x-transition.opacity>
+        <template x-for="img in currentImages" :key="img.comic_id">
+            <img :src="window.url(`/api/reader/${img.comic_id}/page/0`)" class="zoom-image shadow-2xl">
+        </template>
+
+        <button @click="zoomMode = false" class="fixed top-4 right-4 bg-black/50 text-white p-2 rounded-full hover:bg-black/80">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+        </button>
+    </div>
+
+</div>
+
+<script>
+function coverBrowser() {
+    return {
+        contextType: '{{ context_type }}',
+        contextId: {{ context_id }},
+        contextLabel: '{{ context_label }}',
+
+        mode: 'grid',
+        zoomMode: false,
+        items: [],
+        currentIndex: 0,
+        doublePage: false,
+        loading: true,
+
+        async init() {
+            const url = `/api/comics/covers/manifest?context_type=${this.contextType}&context_id=${this.contextId}`;
+            const res = await fetch(url);
+            if(res.ok) {
+                const data = await res.json();
+                this.items = data.items;
+            }
+            this.loading = false;
+        },
+
+        get currentImages() {
+            if (this.items.length === 0) return [];
+            const current = this.items[this.currentIndex];
+
+            if (!this.doublePage) return [current];
+            if (this.currentIndex >= this.items.length - 1) return [current];
+
+            const next = this.items[this.currentIndex + 1];
+            return [current, next];
+        },
+
+        next() {
+            const step = this.doublePage ? 2 : 1;
+            if (this.currentIndex + step < this.items.length) {
+                this.currentIndex += step;
+            }
+        },
+
+        prev() {
+            const step = this.doublePage ? 2 : 1;
+            if (this.currentIndex - step >= 0) {
+                this.currentIndex -= step;
+            } else {
+                this.currentIndex = 0;
+            }
+        },
+
+        goToIndex(index) {
+            this.currentIndex = index;
+            this.mode = 'theater';
+        },
+
+        handleZoneClick(e) {
+            const width = window.innerWidth;
+            if (e.clientX < width / 3) this.prev();
+            else if (e.clientX > width * 0.66) this.next();
+        },
+
+        handleKey(e) {
+            if (this.zoomMode) {
+                if (e.key === 'Escape') this.zoomMode = false;
+                return;
+            }
+
+            if(e.key === 'Escape') {
+                if(this.mode === 'theater') this.mode = 'grid';
+                else this.exit();
+            }
+            if(e.key === 'ArrowRight' || e.key === ' ') this.next();
+            if(e.key === 'ArrowLeft') this.prev();
+            if(e.key === 'g') this.mode = 'grid';
+            if(e.key === 't') this.mode = 'theater';
+            if(e.key === 'z') {
+                if(this.mode === 'theater') this.zoomMode = true;
+            }
+            if(e.key === 'd') {
+                this.doublePage = !this.doublePage;
+            }
+        },
+
+        exit() {
+            if(this.contextType === 'series') window.location.href = `/series/${this.contextId}`;
+            else if(this.contextType === 'volume') window.location.href = `/volumes/${this.contextId}`;
+            else if(this.contextType === 'reading_list') window.location.href = `/reading-lists/${this.contextId}`;
+            else if(this.contextType === 'collection') window.location.href = `/collections/${this.contextId}`;
+            else if(this.contextType === 'pull_list') window.location.href = `/pull-lists/${this.contextId}`;
+            else window.location.href = '/';
+        }
+    }
+}
+</script>
+{% endblock %}

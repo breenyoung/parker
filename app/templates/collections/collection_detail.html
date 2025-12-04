@@ -39,6 +39,8 @@
                     <div class="flex items-center gap-3 mb-2">
                         <h1 class="text-3xl font-bold text-white" x-text="collection?.name"></h1>
                         <span x-show="collection?.auto_generated" class="bg-gray-700 text-xs px-2 py-1 rounded text-gray-300 border border-gray-600">Auto-Generated</span>
+                        {% from "partials/cover_browser_link.html" import cover_browser_link %}
+                        {{ cover_browser_link("collection", collection_id) }}
                     </div>
                     <p class="text-gray-400 mt-2 text-lg" x-text="collection?.description"></p>
                     <div class="mt-4 text-sm text-gray-500 font-mono">

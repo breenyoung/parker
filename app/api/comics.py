@@ -1,21 +1,26 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response, FileResponse
-from typing import List, Annotated
+from sqlalchemy import Float, func
+from typing import List, Annotated, Literal
 from pathlib import Path
 import re
 import random
 
-
-from app.core.comic_helpers import get_reading_time
+from app.core.comic_helpers import get_reading_time, get_format_sort_index
 from app.api.deps import SessionDep, CurrentUser
+
 from app.models.comic import Comic, Volume
 from app.models.series import Series
 from app.models.library import Library
+from app.models.reading_list import ReadingList, ReadingListItem
+from app.models.collection import Collection, CollectionItem
+from app.models.pull_list import PullList, PullListItem
+from app.models.reading_progress import ReadingProgress
 
 from app.schemas.search import SearchRequest, SearchResponse
 from app.services.search import SearchService
 from app.services.images import ImageService
-from app.models.reading_progress import ReadingProgress
+
 
 router = APIRouter()
 
@@ -241,3 +246,68 @@ async def get_random_backgrounds(
     return [f"api/comics/{cid}/thumbnail" for cid in selected_ids]
 
 
+@router.get("/covers/manifest")
+async def get_cover_manifest(
+        db: SessionDep,
+        current_user: CurrentUser,
+        context_type: Literal["series", "volume", "reading_list", "collection", "pull_list"],
+        context_id: int
+):
+    """
+    Returns a list of Comic IDs and Titles to power the Cover Browser.
+    """
+
+    # 1. Base Query
+    # We use .select_from(Comic) to establish Comic as the "Left Side" anchor.
+    # We join Volume and Series immediately because we need Series.library_id for security.
+    query = db.query(Comic.id, Comic.title, Comic.number, Volume.volume_number, Series.name) \
+        .select_from(Comic) \
+        .join(Volume) \
+        .join(Series)
+
+    # Apply Security
+    query = filter_by_user_access(query, current_user)
+
+    # 3. Context Filtering & Sorting
+    if context_type == "volume":
+        query = query.filter(Comic.volume_id == context_id) \
+            .order_by(func.cast(Comic.number, Float), Comic.number)
+
+    elif context_type == "series":
+        format_weight = get_format_sort_index()
+        query = query.filter(Volume.series_id == context_id) \
+            .order_by(Volume.volume_number, format_weight, func.cast(Comic.number, Float))
+
+    elif context_type == "reading_list":
+        # Explicit Join: Join ReadingListItem to Comic
+        query = query.join(ReadingListItem, ReadingListItem.comic_id == Comic.id) \
+            .filter(ReadingListItem.reading_list_id == context_id) \
+            .order_by(ReadingListItem.position)
+
+    elif context_type == "pull_list":
+        # Explicit Join: Join PullListItem to Comic
+        # Also ensure we only show the current user's list (though RLS on library covers the content)
+        query = query.join(PullListItem, PullListItem.comic_id == Comic.id) \
+            .filter(PullListItem.pull_list_id == context_id) \
+            .order_by(PullListItem.sort_order)
+
+    elif context_type == "collection":
+        # Explicit Join: Join CollectionItem to Comic
+        # Fixes "Can't determine which FROM clause" error
+        query = query.join(CollectionItem, CollectionItem.comic_id == Comic.id) \
+            .filter(CollectionItem.collection_id == context_id) \
+            .order_by(Comic.year.asc(), Series.name.asc(), func.cast(Comic.number, Float))
+
+    items = query.all()
+
+    return {
+        "total": len(items),
+        "items": [
+            {
+                "comic_id": r.id,
+                "label": f"{r.name} #{r.number}",
+                "thumbnail_url": f"/api/comics/{r.id}/thumbnail"  # Consider using relative path helper if implemented
+            }
+            for r in items
+        ]
+    }

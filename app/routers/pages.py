@@ -110,6 +110,16 @@ async def dashboard(request: Request):
         "request": request,
     })
 
+@router.get("/browse/{context_type}/{context_id}", response_class=HTMLResponse)
+async def cover_browser_page(request: Request, context_type: str, context_id: int):
+    # Pass label logic or let JS fetch it
+    return templates.TemplateResponse("comics/cover_browser.html", {
+        "request": request,
+        "context_type": context_type,
+        "context_id": context_id,
+        "context_label": context_type.title() # Simple default
+    })
+
 @router.get("/404", response_class=HTMLResponse)
 async def dashboard(request: Request):
     return templates.TemplateResponse("status_codes/404.html", {
