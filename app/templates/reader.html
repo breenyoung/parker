@@ -560,7 +560,7 @@ function reader() {
             if (index === undefined || index < 0 || index >= this.meta.page_count) return '';
 
             // Points to reader.py endpoint
-            let url = window.url(`/api/comics/${this.comicId}/page/${index}`);
+            let url = window.url(`/api/reader/${this.comicId}/page/${index}`);
 
             // Append Server-Side Filters
             const params = new URLSearchParams();
