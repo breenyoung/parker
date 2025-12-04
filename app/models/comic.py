@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Text, DateTime, Float
+from sqlalchemy import Column, Integer, String, ForeignKey, Text, DateTime, Float, JSON
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.database import Base
@@ -73,6 +73,7 @@ class Comic(Base):
     # Dominant Colors (used for Colorscape) (Stored as HEX strings e.g., "#FF0000")
     color_primary = Column(String, nullable=True)
     color_secondary = Column(String, nullable=True)
+    color_palette = Column(JSON, nullable=True)  # Full color palette for advanced features
 
     # Store full metadata as JSON for anything we missed
     metadata_json = Column(Text)
