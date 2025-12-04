@@ -36,6 +36,8 @@
     {% block extra_head %}{% endblock %}
 </head>
 <body class="bg-gray-900 text-gray-100 min-h-screen" x-data="{ mobileMenuOpen: false }">
+    {% include "partials/dynamic_background.html" %}
+
     <!-- Navigation -->
     <nav class="bg-gray-800 border-b border-gray-700 sticky top-0 z-50">
         <div class="container mx-auto px-4">

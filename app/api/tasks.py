@@ -55,3 +55,19 @@ async def run_refresh_descriptions_task(
         "message": "Enrichment complete",
         "stats": stats
     }
+
+@router.post("/refresh-colorscapes")
+async def run_colorscape_refresh_task(
+        db: SessionDep,
+        admin: AdminUser
+):
+    """
+    Generate colors for comics that are missing them.
+    """
+    service = MaintenanceService(db)
+    stats = service.backfill_colors()
+
+    return {
+        "message": "ColorScape backfill complete",
+        "stats": stats
+    }

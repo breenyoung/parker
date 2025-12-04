@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Text, DateTime, Float
+from sqlalchemy import Column, Integer, String, ForeignKey, Text, DateTime, Float, JSON
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.database import Base
@@ -43,7 +43,7 @@ class Comic(Base):
     age_rating = Column(String, nullable=True) # e.g. "Everyone"
     language_iso = Column(String, nullable=True)  # e.g. "en", "jp"
 
-    # Total issue count for the volume (from ComicInfo.xml <Count>)
+    # Total issue count for the volume (derived during scan from actual page counting in archive)
     # Used to determine if a series is "Ended" and calculate missing issues.
     count = Column(Integer, nullable=True)
 
@@ -69,6 +69,11 @@ class Comic(Base):
     alternate_series = Column(String)
     alternate_number = Column(String)
     story_arc = Column(String)
+
+    # Dominant Colors (used for Colorscape) (Stored as HEX strings e.g., "#FF0000")
+    color_primary = Column(String, nullable=True)
+    color_secondary = Column(String, nullable=True)
+    color_palette = Column(JSON, nullable=True)  # Full color palette for advanced features
 
     # Store full metadata as JSON for anything we missed
     metadata_json = Column(Text)

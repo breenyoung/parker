@@ -2,10 +2,12 @@ from sqlalchemy.orm import Session
 
 from app.models.tags import Character, Team, Location
 from app.models.credits import Person
+from app.models.comic import Comic
 from app.models.reading_list import ReadingList
 from app.models.collection import Collection
 
 from app.services.enrichment import EnrichmentService
+from app.services.images import ImageService
 
 class MaintenanceService:
     def __init__(self, db: Session):
@@ -87,3 +89,34 @@ class MaintenanceService:
 
         return {"updated": updated_count, "total_scanned": len(lists)}
 
+    def backfill_colors(self) -> dict:
+        """Generate colors for comics that miss them."""
+        # Get ALL IDs that need processing
+
+        ids = [r[0] for r in self.db.query(Comic.id).filter(Comic.color_primary == None).all()]
+        total = len(ids)
+        updated_count = 0
+        img_svc = ImageService()
+
+        # Process in chunks
+        chunk_size = 50
+        for i in range(0, total, chunk_size):
+            chunk_ids = ids[i:i + chunk_size]
+
+            comics = self.db.query(Comic).filter(Comic.id.in_(chunk_ids)).all()
+
+            for comic in comics:
+                try:
+                    #p, s = img_svc.extract_dominant_colors(str(comic.file_path))
+                    palette_dict = img_svc.extract_palette(str(comic.file_path))
+                    if palette_dict:
+                        comic.color_primary = palette_dict['primary']
+                        comic.color_secondary = palette_dict['secondary']
+                        comic.color_palette = palette_dict
+                        updated_count += 1
+                except:
+                    continue
+
+            self.db.commit()
+
+        return {"updated": updated_count, "total_scanned": total}

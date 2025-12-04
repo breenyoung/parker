@@ -131,15 +131,6 @@ async def get_comic(comic_id: int, db: SessionDep, current_user: CurrentUser):
         # Credits (grouped by role)
         "credits": credits,
 
-        # Or if you prefer individual fields:
-        #"writer": credits.get('writer', []),
-        #"penciller": credits.get('penciller', []),
-        #"inker": credits.get('inker', []),
-        #"colorist": credits.get('colorist', []),
-        #"letterer": credits.get('letterer', []),
-        #"cover_artist": credits.get('cover_artist', []),
-        #"editor": credits.get('editor', []),
-
         # Publishing
         "publisher": comic.publisher,
         "imprint": comic.imprint,
@@ -167,6 +158,11 @@ async def get_comic(comic_id: int, db: SessionDep, current_user: CurrentUser):
 
         # Read status
         "read_status": read_status,
+
+        # ColorScape
+        "color_primary": comic.color_primary,
+        "color_secondary": comic.color_secondary,
+        "color_palette": comic.color_palette,
     }
 
 

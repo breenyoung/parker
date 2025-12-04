@@ -3,6 +3,22 @@
 {% block title %}Comic Details - Comic Server{% endblock %}
 
 {% block content %}
+<script>
+    // Pass data to the background component
+    window.PAGE_CONTEXT = {
+        imageUrl: "/api/comics/{{ comic_id }}/thumbnail",
+        colors: {
+            primary: "{{ comic.color_primary }}",
+            secondary: "{{ comic.color_secondary }}",
+            accent1: '{{ comic.color_palette.accent1 if comic.color_palette else "#333333" }}',
+            accent2: '{{ comic.color_palette.accent2 if comic.color_palette else "#444444" }}',
+            accent3: '{{ comic.color_palette.accent3 if comic.color_palette else "#555555" }}'
+        }
+    };
+</script>
+
+
+<div class="relative z-10">
 <div class="max-w-6xl mx-auto" x-data="comicDetail()">
     
     <div class="flex items-center space-x-2 text-gray-400 mb-6 text-sm" x-show="!error" x-cloak>
@@ -268,6 +284,7 @@
 
         </div>
     </div>
+</div>
 </div>
 
 <script>

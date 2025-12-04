@@ -1,8 +1,10 @@
+import logging
 from pathlib import Path
-from typing import Optional, Tuple, Annotated
+from typing import Optional, Tuple, Annotated, Dict
 from io import BytesIO
 from PIL import Image, ImageFilter, ImageOps
-import logging
+from colorthief import ColorThief
+
 
 from app.services.archive import ComicArchive
 from app.config import settings
@@ -172,3 +174,89 @@ class ImageService:
             raise ValueError(e)
             logging.error(f"Avatar processing error: {e}")
             return False
+
+    def extract_palette(self, comic_path: str, num_colors=5) -> Optional[Dict[str, str]]:
+        """Extract color palette using ColorThief"""
+        try:
+
+            path = Path(comic_path)
+            if not path.exists():
+                print(f"Image file not found: {path}")
+                return None
+
+            # 1. Get Cover Bytes
+            cover_bytes, success = self.get_page_image(comic_path, 0)
+            if not success or not cover_bytes:
+                return None
+
+            color_thief = ColorThief(BytesIO(cover_bytes))
+            palette = color_thief.get_palette(color_count=num_colors, quality=10)
+
+            # Convert to HEX
+            def rgb_to_hex(rgb_tuple):
+                return f"#{rgb_tuple[0]:02x}{rgb_tuple[1]:02x}{rgb_tuple[2]:02x}"
+
+            return {
+                'primary': rgb_to_hex(palette[0]),
+                'secondary': rgb_to_hex(palette[1]),
+                'accent1': rgb_to_hex(palette[2]),
+                'accent2': rgb_to_hex(palette[3]),
+                'accent3': rgb_to_hex(palette[4]) if len(palette) > 4 else None
+            }
+
+        except Exception as e:
+            print(f"Color palette extraction failed for {comic_path}: {e}")
+            return None
+
+    def extract_dominant_colors(self, comic_path: str) -> Tuple[Optional[str], Optional[str]]:
+        """
+        Extract primary and secondary dominant colors from the comic cover.
+        Returns: (Primary Hex, Secondary Hex) or (None, None)
+        """
+        try:
+            # 1. Get Cover Bytes
+            cover_bytes, success = self.get_page_image(comic_path, 0)
+            if not success or not cover_bytes:
+                return None, None
+
+            # 2. Open & Resize (Speed Optimization)
+            img = Image.open(BytesIO(cover_bytes))
+            img.thumbnail((150, 150))  # Reduce processing time
+
+            # 3. Quantize to reduce palette (e.g., 5 colors)
+            # method=2 (Fast Octree) is usually sufficient and faster
+            q_img = img.quantize(colors=5, method=2)
+
+            # 4. Get Palette
+            # getpalette() returns [r,g,b, r,g,b, ...]
+            palette = q_img.getpalette()
+
+            # We need to find the most frequent colors.
+            # Pillow's histogram on a quantized image returns counts for indices.
+            color_counts = sorted(q_img.getcolors(), key=lambda x: x[0], reverse=True)
+
+            # Helper to convert RGB to Hex
+            def rgb_to_hex(r, g, b):
+                return f"#{r:02x}{g:02x}{b:02x}"
+
+            # Extract Top 2
+            # We iterate to skip "boring" colors if you wanted, but for V1 we just take top 2.
+            colors = []
+            for count, index in color_counts[:2]:
+                # Palette is a flat list, so index * 3 gives the start of the RGB triplet
+                start = index * 3
+                r, g, b = palette[start], palette[start + 1], palette[start + 2]
+                colors.append(rgb_to_hex(r, g, b))
+
+            # Pad if only 1 color found
+            if len(colors) == 1:
+                colors.append(colors[0])
+
+            return (colors[0], colors[1]) if colors else (None, None)
+
+        except Exception as e:
+            print(f"Color extraction failed for {comic_path}: {e}")
+            return None, None
+
+
+
