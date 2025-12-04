@@ -1,8 +1,10 @@
+import logging
 from pathlib import Path
-from typing import Optional, Tuple, Annotated
+from typing import Optional, Tuple, Annotated, Dict
 from io import BytesIO
 from PIL import Image, ImageFilter, ImageOps
-import logging
+from colorthief import ColorThief
+
 
 from app.services.archive import ComicArchive
 from app.config import settings
@@ -173,6 +175,39 @@ class ImageService:
             logging.error(f"Avatar processing error: {e}")
             return False
 
+    def extract_palette(self, comic_path: str, num_colors=5) -> Optional[Dict[str, str]]:
+        """Extract color palette using ColorThief"""
+        try:
+
+            path = Path(comic_path)
+            if not path.exists():
+                print(f"Image file not found: {path}")
+                return None
+
+            # 1. Get Cover Bytes
+            cover_bytes, success = self.get_page_image(comic_path, 0)
+            if not success or not cover_bytes:
+                return None
+
+            color_thief = ColorThief(BytesIO(cover_bytes))
+            palette = color_thief.get_palette(color_count=num_colors, quality=10)
+
+            # Convert to HEX
+            def rgb_to_hex(rgb_tuple):
+                return f"#{rgb_tuple[0]:02x}{rgb_tuple[1]:02x}{rgb_tuple[2]:02x}"
+
+            return {
+                'primary': rgb_to_hex(palette[0]),
+                'secondary': rgb_to_hex(palette[1]),
+                'accent1': rgb_to_hex(palette[2]),
+                'accent2': rgb_to_hex(palette[3]),
+                'accent3': rgb_to_hex(palette[4]) if len(palette) > 4 else None
+            }
+
+        except Exception as e:
+            print(f"Color palette extraction failed for {comic_path}: {e}")
+            return None
+
     def extract_dominant_colors(self, comic_path: str) -> Tuple[Optional[str], Optional[str]]:
         """
         Extract primary and secondary dominant colors from the comic cover.
@@ -222,3 +257,6 @@ class ImageService:
         except Exception as e:
             print(f"Color extraction failed for {comic_path}: {e}")
             return None, None
+
+
+

@@ -91,25 +91,32 @@ class MaintenanceService:
 
     def backfill_colors(self) -> dict:
         """Generate colors for comics that miss them."""
-        # Fetch comics with null colors
-        comics = self.db.query(Comic).filter(Comic.color_primary == None).all()
+        # Get ALL IDs that need processing
 
-        updated = 0
+        ids = [r[0] for r in self.db.query(Comic.id).filter(Comic.color_primary == None).all()]
+        total = len(ids)
+        updated_count = 0
         img_svc = ImageService()
 
-        for comic in comics:
-            try:
-                p, s = img_svc.extract_dominant_colors(str(comic.file_path))
-                if p:
-                    comic.color_primary = p
-                    comic.color_secondary = s
-                    updated += 1
+        # Process in chunks
+        chunk_size = 50
+        for i in range(0, total, chunk_size):
+            chunk_ids = ids[i:i + chunk_size]
 
-                # Commit every 50 to avoid massive transactions
-                if updated % 50 == 0:
-                    self.db.commit()
-            except:
-                continue
+            comics = self.db.query(Comic).filter(Comic.id.in_(chunk_ids)).all()
 
-        self.db.commit()
-        return {"updated": updated, "total_scanned": len(comics)}
+            for comic in comics:
+                try:
+                    #p, s = img_svc.extract_dominant_colors(str(comic.file_path))
+                    palette_dict = img_svc.extract_palette(str(comic.file_path))
+                    if palette_dict:
+                        comic.color_primary = palette_dict['primary']
+                        comic.color_secondary = palette_dict['secondary']
+                        comic.color_palette = palette_dict
+                        updated_count += 1
+                except:
+                    continue
+
+            self.db.commit()
+
+        return {"updated": updated_count, "total_scanned": total}
