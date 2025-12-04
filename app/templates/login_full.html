@@ -189,8 +189,14 @@ function loginCycler() {
                     throw new Error(data.detail || "Login failed");
                 }
 
-                // Store Token
+                // Store Token for API calls (Alpine/JS)
                 localStorage.setItem('token', data.access_token);
+
+                // Store Token for Server-Side Rendering (HTML Routes)
+                // We set a cookie accessible to the server
+                // max-age=86400 (1 day) or match your token expiry
+                //document.cookie = `access_token=${data.access_token}; path=/; max-age=86400; SameSite=Lax`;
+                document.cookie = `access_token=${data.access_token}; path=/; max-age=${data.lifetime_in_seconds}; SameSite=Lax`;
 
                 // Redirect
                 window.location.href = window.url('/');

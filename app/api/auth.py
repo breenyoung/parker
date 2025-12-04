@@ -23,6 +23,7 @@ class UserCreate(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
+    lifetime_in_seconds: int
 
 
 class UserResponse(BaseModel):
@@ -58,7 +59,7 @@ async def login_for_access_token(
         subject=user.username, expires_delta=access_token_expires
     )
 
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {"access_token": access_token, "token_type": "bearer", "lifetime_in_seconds": (settings.access_token_expire_minutes * 60)}
 
 
 
