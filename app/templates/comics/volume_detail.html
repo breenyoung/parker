@@ -3,148 +3,156 @@
 {% block title %}Volume Details - Comic Server{% endblock %}
 
 {% block content %}
-<div class="space-y-6" x-data="volumeDetail()">
-    
-    <div class="flex items-center space-x-2 text-gray-400 mb-6 text-sm" x-show="!error" x-cloak>
-        <a :href="window.url(`/library/${volume?.library_id}`)" class="hover:text-white" x-text="volume?.library_name"></a>
-        <span>/</span>
-        <a :href="window.url(`/series/${volume?.series_id}`)" class="hover:text-blue-400" x-text="volume?.series_name || 'Series'"></a>
-        <span>/</span>
-        <span class="text-white" x-text="`Vol ${volume?.volume_number}`"></span>
-    </div>
 
-    <div x-show="loading" class="flex justify-center py-20">
-        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-    </div>
+{% from "partials/page_context.html" import page_context %}
+{{ page_context(cover.id, cover.color_palette) }}
 
-    <div x-show="error" style="display: none;" class="max-w-lg mx-auto mt-20 text-center">
-        <div class="bg-gray-800 rounded-lg p-8 border border-gray-700 shadow-2xl">
-            <div class="text-5xl mb-4">🤷‍♂️</div>
-            <h2 class="text-2xl font-bold text-white mb-2" x-text="error?.title"></h2>
-            <p class="text-gray-400 mb-6" x-text="error?.message"></p>
+<div class="relative z-10">
 
-            <div class="flex gap-4 justify-center">
-                <button x-on:click="window.history.back()" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors">
-                    Go Back
-                </button>
-                <a :href="window.url('/')" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors">
-                    Home
-                </a>
+    <div class="space-y-6" x-data="volumeDetail()">
+
+        <div class="flex items-center space-x-2 text-gray-400 mb-6 text-sm" x-show="!error" x-cloak>
+            <a :href="window.url(`/library/${volume?.library_id}`)" class="hover:text-white" x-text="volume?.library_name"></a>
+            <span>/</span>
+            <a :href="window.url(`/series/${volume?.series_id}`)" class="hover:text-blue-400" x-text="volume?.series_name || 'Series'"></a>
+            <span>/</span>
+            <span class="text-white" x-text="`Vol ${volume?.volume_number}`"></span>
+        </div>
+
+        <div x-show="loading" class="flex justify-center py-20">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        </div>
+
+        <div x-show="error" style="display: none;" class="max-w-lg mx-auto mt-20 text-center">
+            <div class="bg-gray-800 rounded-lg p-8 border border-gray-700 shadow-2xl">
+                <div class="text-5xl mb-4">🤷‍♂️</div>
+                <h2 class="text-2xl font-bold text-white mb-2" x-text="error?.title"></h2>
+                <p class="text-gray-400 mb-6" x-text="error?.message"></p>
+
+                <div class="flex gap-4 justify-center">
+                    <button x-on:click="window.history.back()" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors">
+                        Go Back
+                    </button>
+                    <a :href="window.url('/')" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors">
+                        Home
+                    </a>
+                </div>
             </div>
         </div>
-    </div>
 
-    <div x-show="!loading && volume" style="display: none;">
-        
-        <div class="bg-gray-800 rounded-lg p-6 mb-6 shadow-lg border border-gray-700">
-            <div class="flex items-start space-x-6">
-                <div class="flex-shrink-0">
-                    <div x-show="volume?.first_issue_id" class="w-40 h-60 bg-gray-700 rounded-lg overflow-hidden shadow-lg border border-gray-600">
-                        <img 
-                            :src="volume?.first_issue_id ? window.url(`/api/comics/${volume.first_issue_id}/thumbnail?width=300&height=450`) : ''"
-                            class="w-full h-full object-cover"
-                        >
+        <div x-show="!loading && volume" style="display: none;">
+
+            <div class="bg-gray-800 rounded-lg p-6 mb-6 shadow-lg border border-gray-700">
+                <div class="flex items-start space-x-6">
+                    <div class="flex-shrink-0">
+                        <div x-show="volume?.first_issue_id" class="w-40 h-60 bg-gray-700 rounded-lg overflow-hidden shadow-lg border border-gray-600">
+                            <img
+                                :src="volume?.first_issue_id ? window.url(`/api/comics/${volume.first_issue_id}/thumbnail?width=300&height=450`) : ''"
+                                class="w-full h-full object-cover"
+                            >
+                        </div>
+                        <div x-show="!volume?.first_issue_id" class="w-40 h-60 bg-gray-700 rounded-lg flex items-center justify-center text-gray-500">
+                            No Cover
+                        </div>
                     </div>
-                    <div x-show="!volume?.first_issue_id" class="w-40 h-60 bg-gray-700 rounded-lg flex items-center justify-center text-gray-500">
-                        No Cover
-                    </div>
-                </div>
-                
-                <div class="flex-1 pt-2">
 
-                    <h2 class="text-2xl text-gray-400 font-light" x-text="volume?.series_name"></h2>
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <h1 class="text-4xl font-bold text-white mb-3" x-text="`Volume ${volume?.volume_number}`"></h1>
+                    <div class="flex-1 pt-2">
 
-                            <div class="flex items-center gap-3 mb-6">
-                                <template x-if="volume?.resume_to?.comic_id">
-                                    {%  include "partials/read_volume_button.html" %}
-                                </template>
-                            </div>
+                        <h2 class="text-2xl text-gray-400 font-light" x-text="volume?.series_name"></h2>
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <h1 class="text-4xl font-bold text-white mb-3" x-text="`Volume ${volume?.volume_number}`"></h1>
 
-                            <div class="mb-4 text-gray-300 flex items-center gap-2">
-                                <span class="text-sm text-gray-500">Publisher:</span>
+                                <div class="flex items-center gap-3 mb-6">
+                                    <template x-if="volume?.resume_to?.comic_id">
+                                        {%  include "partials/read_volume_button.html" %}
+                                    </template>
+                                </div>
 
-                                {% with publisher_ref="volume?.publisher" %}
-                                    {% include "partials/publisher_link.html" %}
-                                {% endwith %}
+                                <div class="mb-4 text-gray-300 flex items-center gap-2">
+                                    <span class="text-sm text-gray-500">Publisher:</span>
 
-                                <template x-if="volume?.publisher && volume?.imprint">
-                                    <span class="text-gray-600">|</span>
-                                </template>
+                                    {% with publisher_ref="volume?.publisher" %}
+                                        {% include "partials/publisher_link.html" %}
+                                    {% endwith %}
 
-                                {% with imprint_ref="volume?.imprint" %}
-                                    {% include "partials/imprint_link.html" %}
-                                {% endwith %}
-
-                                {% from "partials/cover_browser_link.html" import cover_browser_link %}
-                                {{ cover_browser_link("volume", volume_id) }}
-
-                            </div>
-
-
-
-                            <div class="flex items-center gap-4 text-sm text-gray-300">
-                                <template x-if="!isStandalone">
-                                    <span class="bg-blue-900/50 px-3 py-1 rounded-full border border-blue-800 text-blue-100" x-text="`${volume?.total_issues || 0} Issues`"></span>
-                                </template>
-
-                                <template x-if="volume?.annual_count > 0">
-                                    <span class="bg-yellow-900/50 px-3 py-1 rounded-full border border-yellow-800 text-yellow-100" x-text="`${volume?.annual_count} Annuals`"></span>
-                                </template>
-
-                                <template x-if="volume?.special_count > 0">
-                                    <span class="bg-purple-900/50 px-3 py-1 rounded-full border border-purple-800 text-purple-100" x-text="`${volume?.special_count} Specials`"></span>
-                                </template>
-
-                                <span x-show="volume?.start_year" x-text="`${volume?.start_year} - ${volume?.end_year || 'Present'}`"></span>
-
-                                <span x-show="volume?.status"
-                                      class="px-2 py-0.5 rounded text-xs uppercase font-bold tracking-wide border"
-                                      :class="volume?.status === 'ongoing' ? 'bg-green-900/50 text-green-200 border-green-800' : 'bg-gray-700 text-gray-400 border-gray-600'"
-                                      x-text="volume?.status">
-                                </span>
-
-                                <template x-if="volume?.total_pages > 0">
-                                    <div class="flex items-center gap-4 text-gray-400 border-l border-gray-700 pl-4">
-                                        <span class="flex items-center gap-1" title="Total Pages">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                                <path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z" />
-                                            </svg>
-                                            <span x-text="volume.total_pages"></span>
-                                        </span>
-
-                                        <span class="flex items-center gap-1" title="Est. Time to Read">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
-                                            </svg>
-                                            <span x-text="volume.read_time"></span>
-                                        </span>
-                                    </div>
-                                </template>
-
-                                <div x-show="volume?.status === 'ended'" class="text-sm">
-                                    <template x-if="volume?.is_completed">
-                                        <span class="text-green-400 flex items-center gap-1 font-medium select-none bg-green-900/20 px-3 py-2 rounded border border-green-900/30 inline-block">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                                            </svg>
-                                            Library Complete
-                                        </span>
+                                    <template x-if="volume?.publisher && volume?.imprint">
+                                        <span class="text-gray-600">|</span>
                                     </template>
 
-                                    <template x-if="!volume?.is_completed && volume?.missing_issues?.length > 0">
-                                        <div class="text-orange-300 bg-orange-900/20 px-3 py-2 rounded border border-orange-900/50 inline-flex items-center gap-2 max-w-xl">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-orange-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
-                                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
-                                            </svg>
-                                            <div class="flex-1">
-                                                <span class="font-bold">Missing:</span>
-                                                <span class="text-orange-200" :title="volume.missing_issues.join(', ')" x-text="formatMissing(volume.missing_issues)"></span>
-                                            </div>
+                                    {% with imprint_ref="volume?.imprint" %}
+                                        {% include "partials/imprint_link.html" %}
+                                    {% endwith %}
+
+                                    {% from "partials/cover_browser_link.html" import cover_browser_link %}
+                                    {{ cover_browser_link("volume", volume_id) }}
+
+                                </div>
+
+
+
+                                <div class="flex items-center gap-4 text-sm text-gray-300">
+                                    <template x-if="!isStandalone">
+                                        <span class="bg-blue-900/50 px-3 py-1 rounded-full border border-blue-800 text-blue-100" x-text="`${volume?.total_issues || 0} Issues`"></span>
+                                    </template>
+
+                                    <template x-if="volume?.annual_count > 0">
+                                        <span class="bg-yellow-900/50 px-3 py-1 rounded-full border border-yellow-800 text-yellow-100" x-text="`${volume?.annual_count} Annuals`"></span>
+                                    </template>
+
+                                    <template x-if="volume?.special_count > 0">
+                                        <span class="bg-purple-900/50 px-3 py-1 rounded-full border border-purple-800 text-purple-100" x-text="`${volume?.special_count} Specials`"></span>
+                                    </template>
+
+                                    <span x-show="volume?.start_year" x-text="`${volume?.start_year} - ${volume?.end_year || 'Present'}`"></span>
+
+                                    <span x-show="volume?.status"
+                                          class="px-2 py-0.5 rounded text-xs uppercase font-bold tracking-wide border"
+                                          :class="volume?.status === 'ongoing' ? 'bg-green-900/50 text-green-200 border-green-800' : 'bg-gray-700 text-gray-400 border-gray-600'"
+                                          x-text="volume?.status">
+                                    </span>
+
+                                    <template x-if="volume?.total_pages > 0">
+                                        <div class="flex items-center gap-4 text-gray-400 border-l border-gray-700 pl-4">
+                                            <span class="flex items-center gap-1" title="Total Pages">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                    <path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z" />
+                                                </svg>
+                                                <span x-text="volume.total_pages"></span>
+                                            </span>
+
+                                            <span class="flex items-center gap-1" title="Est. Time to Read">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
+                                                </svg>
+                                                <span x-text="volume.read_time"></span>
+                                            </span>
                                         </div>
                                     </template>
+
+                                    <div x-show="volume?.status === 'ended'" class="text-sm">
+                                        <template x-if="volume?.is_completed">
+                                            <span class="text-green-400 flex items-center gap-1 font-medium select-none bg-green-900/20 px-3 py-2 rounded border border-green-900/30 inline-block">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                                                </svg>
+                                                Library Complete
+                                            </span>
+                                        </template>
+
+                                        <template x-if="!volume?.is_completed && volume?.missing_issues?.length > 0">
+                                            <div class="text-orange-300 bg-orange-900/20 px-3 py-2 rounded border border-orange-900/50 inline-flex items-center gap-2 max-w-xl">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-orange-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                                                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                                                </svg>
+                                                <div class="flex-1">
+                                                    <span class="font-bold">Missing:</span>
+                                                    <span class="text-orange-200" :title="volume.missing_issues.join(', ')" x-text="formatMissing(volume.missing_issues)"></span>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+
                                 </div>
 
                             </div>
@@ -152,184 +160,185 @@
                         </div>
 
                     </div>
-
                 </div>
             </div>
-        </div>
 
-        <div class="bg-gray-800 rounded-lg overflow-hidden min-h-[500px] border border-gray-700 shadow-lg">
-            <div class="flex border-b border-gray-700">
+            <div class="bg-gray-800 rounded-lg overflow-hidden min-h-[500px] border border-gray-700 shadow-lg">
+                <div class="flex border-b border-gray-700">
 
-                <button
-                    x-on:click="switchTab('issues')"
-                    :class="activeTab === 'issues' ? 'bg-gray-700 text-white border-b-2 border-blue-500' : 'text-gray-400 hover:text-white hover:bg-gray-750'"
-                    class="px-8 py-4 font-medium transition-colors"
-                >
-                    Issues <span class="text-xs ml-1 bg-gray-600 px-1.5 rounded-full text-gray-300" x-text="isStandalone ? (volume?.annual_count + volume?.special_count) : volume?.total_issues"></span>
-                </button>
-
-                <template x-if="!isStandalone && volume?.annual_count > 0">
                     <button
-                        x-on:click="switchTab('annuals')"
-                        :class="activeTab === 'annuals' ? 'bg-gray-700 text-white border-b-2 border-blue-500' : 'text-gray-400 hover:text-white hover:bg-gray-750'"
+                        x-on:click="switchTab('issues')"
+                        :class="activeTab === 'issues' ? 'bg-gray-700 text-white border-b-2 border-blue-500' : 'text-gray-400 hover:text-white hover:bg-gray-750'"
                         class="px-8 py-4 font-medium transition-colors"
                     >
-                        Annuals <span class="text-xs ml-1 bg-gray-600 px-1.5 rounded-full text-gray-300" x-text="volume?.annual_count"></span>
+                        Issues <span class="text-xs ml-1 bg-gray-600 px-1.5 rounded-full text-gray-300" x-text="isStandalone ? (volume?.annual_count + volume?.special_count) : volume?.total_issues"></span>
                     </button>
-                </template>
 
-                <template x-if="!isStandalone && volume?.special_count > 0">
+                    <template x-if="!isStandalone && volume?.annual_count > 0">
+                        <button
+                            x-on:click="switchTab('annuals')"
+                            :class="activeTab === 'annuals' ? 'bg-gray-700 text-white border-b-2 border-blue-500' : 'text-gray-400 hover:text-white hover:bg-gray-750'"
+                            class="px-8 py-4 font-medium transition-colors"
+                        >
+                            Annuals <span class="text-xs ml-1 bg-gray-600 px-1.5 rounded-full text-gray-300" x-text="volume?.annual_count"></span>
+                        </button>
+                    </template>
+
+                    <template x-if="!isStandalone && volume?.special_count > 0">
+                        <button
+                            x-on:click="switchTab('specials')"
+                            :class="activeTab === 'specials' ? 'bg-gray-700 text-white border-b-2 border-blue-500' : 'text-gray-400 hover:text-white hover:bg-gray-750'"
+                            class="px-8 py-4 font-medium transition-colors"
+                        >
+                            Specials <span class="text-xs ml-1 bg-gray-600 px-1.5 rounded-full text-gray-300" x-text="volume?.special_count"></span>
+                        </button>
+                    </template>
+
+                    <template x-if="volume?.story_arcs?.length > 0">
+                        <button
+                            x-on:click="switchTab('arcs')"
+                            :class="activeTab === 'arcs' ? 'bg-gray-700 text-white border-b-2 border-blue-500' : 'text-gray-400 hover:text-white hover:bg-gray-750'"
+                            class="px-8 py-4 font-medium transition-colors"
+                        >
+                            Story Arcs <span class="text-xs ml-1 bg-gray-600 px-1.5 rounded-full text-gray-300" x-text="volume?.story_arcs.length"></span>
+                        </button>
+                    </template>
+
                     <button
-                        x-on:click="switchTab('specials')"
-                        :class="activeTab === 'specials' ? 'bg-gray-700 text-white border-b-2 border-blue-500' : 'text-gray-400 hover:text-white hover:bg-gray-750'"
+                        x-on:click="activeTab = 'details'"
+                        :class="activeTab === 'details' ? 'bg-gray-700 text-white border-b-2 border-blue-500' : 'text-gray-400 hover:text-white hover:bg-gray-750'"
                         class="px-8 py-4 font-medium transition-colors"
                     >
-                        Specials <span class="text-xs ml-1 bg-gray-600 px-1.5 rounded-full text-gray-300" x-text="volume?.special_count"></span>
+                        Details
                     </button>
-                </template>
+                </div>
 
-                <template x-if="volume?.story_arcs?.length > 0">
-                    <button
-                        x-on:click="switchTab('arcs')"
-                        :class="activeTab === 'arcs' ? 'bg-gray-700 text-white border-b-2 border-blue-500' : 'text-gray-400 hover:text-white hover:bg-gray-750'"
-                        class="px-8 py-4 font-medium transition-colors"
-                    >
-                        Story Arcs <span class="text-xs ml-1 bg-gray-600 px-1.5 rounded-full text-gray-300" x-text="volume?.story_arcs.length"></span>
-                    </button>
-                </template>
+                <div class="p-6">
 
-                <button
-                    x-on:click="activeTab = 'details'"
-                    :class="activeTab === 'details' ? 'bg-gray-700 text-white border-b-2 border-blue-500' : 'text-gray-400 hover:text-white hover:bg-gray-750'"
-                    class="px-8 py-4 font-medium transition-colors"
-                >
-                    Details
-                </button>
-            </div>
+                    <div x-show="['issues', 'annuals', 'specials'].includes(activeTab)">
+                        <div x-show="gridLoading" class="py-12 text-center">
+                            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                            <p class="text-gray-400">Loading...</p>
+                        </div>
 
-            <div class="p-6">
+                        <div x-show="!gridLoading && currentItems.length > 0">
+                            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                                <template x-for="comic in currentItems" :key="comic.id">
+                                    {% include "partials/comic_card.html" %}
+                                </template>
+                            </div>
 
-                <div x-show="['issues', 'annuals', 'specials'].includes(activeTab)">
-                    <div x-show="gridLoading" class="py-12 text-center">
-                        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
-                        <p class="text-gray-400">Loading...</p>
+                            <div class="mt-8 flex justify-center items-center space-x-4 border-t border-gray-700 pt-6">
+                                <button
+                                    x-on:click="changePage(currentPage - 1)"
+                                    :disabled="currentPage === 1"
+                                    class="px-4 py-2 rounded bg-gray-700 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-white transition-colors"
+                                >
+                                    Previous
+                                </button>
+                                <span class="text-gray-400">
+                                    Page <span class="text-white font-bold" x-text="currentPage"></span> of <span x-text="Math.ceil(totalItems / pageSize)"></span>
+                                </span>
+                                <button
+                                    x-on:click="changePage(currentPage + 1)"
+                                    :disabled="currentPage >= Math.ceil(totalItems / pageSize)"
+                                    class="px-4 py-2 rounded bg-gray-700 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-white transition-colors"
+                                >
+                                    Next
+                                </button>
+                            </div>
+                        </div>
+
+                        <div x-show="!gridLoading && currentItems.length === 0" class="text-center py-20 text-gray-500">
+                            <p>No comics found in this section.</p>
+                        </div>
                     </div>
 
-                    <div x-show="!gridLoading && currentItems.length > 0">
-                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                            <template x-for="comic in currentItems" :key="comic.id">
-                                {% include "partials/comic_card.html" %}
+                    <div x-show="activeTab === 'arcs'">
+                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                            <template x-for="arc in volume?.story_arcs" :key="arc.name">
+                                {% include "partials/arc_card.html" %}
                             </template>
                         </div>
+                    </div>
 
-                        <div class="mt-8 flex justify-center items-center space-x-4 border-t border-gray-700 pt-6">
-                            <button
-                                x-on:click="changePage(currentPage - 1)"
-                                :disabled="currentPage === 1"
-                                class="px-4 py-2 rounded bg-gray-700 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-white transition-colors"
-                            >
-                                Previous
-                            </button>
-                            <span class="text-gray-400">
-                                Page <span class="text-white font-bold" x-text="currentPage"></span> of <span x-text="Math.ceil(totalItems / pageSize)"></span>
-                            </span>
-                            <button
-                                x-on:click="changePage(currentPage + 1)"
-                                :disabled="currentPage >= Math.ceil(totalItems / pageSize)"
-                                class="px-4 py-2 rounded bg-gray-700 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-white transition-colors"
-                            >
-                                Next
-                            </button>
+                    <div x-show="activeTab === 'details'">
+                        <div class="space-y-8">
+                            <template x-if="volume?.details?.writers?.length > 0">
+                                <div>
+                                    <h3 class="text-lg font-bold mb-3 text-gray-200">Writers</h3>
+                                    <div class="flex flex-wrap gap-2">
+                                        <template x-for="name in volume.details.writers" :key="name">
+                                            {% with type='writer', item='name' %}
+                                                {% include "partials/tag_chip.html" %}
+                                            {% endwith %}
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <template x-if="volume?.details?.pencillers?.length > 0">
+                                <div>
+                                    <h3 class="text-lg font-bold mb-3 text-gray-200">Pencillers</h3>
+                                    <div class="flex flex-wrap gap-2">
+                                        <template x-for="name in volume.details.pencillers" :key="name">
+                                            {% with type='penciller', item='name' %}
+                                                {% include "partials/tag_chip.html" %}
+                                            {% endwith %}
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <div class="border-t border-gray-700 my-6"></div>
+
+                            <template x-if="volume?.details?.characters?.length > 0">
+                                <div>
+                                    <h3 class="text-lg font-bold mb-3 text-gray-200">Characters</h3>
+                                    <div class="flex flex-wrap gap-2">
+                                        <template x-for="name in volume.details.characters" :key="name">
+                                            {% with type='character', item='name' %}
+                                                {% include "partials/tag_chip.html" %}
+                                            {% endwith %}
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <template x-if="volume?.details?.teams?.length > 0">
+                                <div>
+                                    <h3 class="text-lg font-bold mb-3 text-gray-200">Teams</h3>
+                                    <div class="flex flex-wrap gap-2">
+                                        <template x-for="name in volume.details.teams" :key="name">
+                                            {% with type='team', item='name' %}
+                                                {% include "partials/tag_chip.html" %}
+                                            {% endwith %}
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <template x-if="volume?.details?.locations?.length > 0">
+                                <div>
+                                    <h3 class="text-lg font-bold mb-3 text-gray-200">Locations</h3>
+                                    <div class="flex flex-wrap gap-2">
+                                        <template x-for="name in volume.details.locations" :key="name">
+                                            {% with type='location', item='name' %}
+                                                {% include "partials/tag_chip.html" %}
+                                            {% endwith %}
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
                         </div>
                     </div>
 
-                    <div x-show="!gridLoading && currentItems.length === 0" class="text-center py-20 text-gray-500">
-                        <p>No comics found in this section.</p>
-                    </div>
                 </div>
-
-                <div x-show="activeTab === 'arcs'">
-                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-                        <template x-for="arc in volume?.story_arcs" :key="arc.name">
-                            {% include "partials/arc_card.html" %}
-                        </template>
-                    </div>
-                </div>
-
-                <div x-show="activeTab === 'details'">
-                    <div class="space-y-8">
-                        <template x-if="volume?.details?.writers?.length > 0">
-                            <div>
-                                <h3 class="text-lg font-bold mb-3 text-gray-200">Writers</h3>
-                                <div class="flex flex-wrap gap-2">
-                                    <template x-for="name in volume.details.writers" :key="name">
-                                        {% with type='writer', item='name' %}
-                                            {% include "partials/tag_chip.html" %}
-                                        {% endwith %}
-                                    </template>
-                                </div>
-                            </div>
-                        </template>
-
-                        <template x-if="volume?.details?.pencillers?.length > 0">
-                            <div>
-                                <h3 class="text-lg font-bold mb-3 text-gray-200">Pencillers</h3>
-                                <div class="flex flex-wrap gap-2">
-                                    <template x-for="name in volume.details.pencillers" :key="name">
-                                        {% with type='penciller', item='name' %}
-                                            {% include "partials/tag_chip.html" %}
-                                        {% endwith %}
-                                    </template>
-                                </div>
-                            </div>
-                        </template>
-
-                        <div class="border-t border-gray-700 my-6"></div>
-
-                        <template x-if="volume?.details?.characters?.length > 0">
-                            <div>
-                                <h3 class="text-lg font-bold mb-3 text-gray-200">Characters</h3>
-                                <div class="flex flex-wrap gap-2">
-                                    <template x-for="name in volume.details.characters" :key="name">
-                                        {% with type='character', item='name' %}
-                                            {% include "partials/tag_chip.html" %}
-                                        {% endwith %}
-                                    </template>
-                                </div>
-                            </div>
-                        </template>
-
-                        <template x-if="volume?.details?.teams?.length > 0">
-                            <div>
-                                <h3 class="text-lg font-bold mb-3 text-gray-200">Teams</h3>
-                                <div class="flex flex-wrap gap-2">
-                                    <template x-for="name in volume.details.teams" :key="name">
-                                        {% with type='team', item='name' %}
-                                            {% include "partials/tag_chip.html" %}
-                                        {% endwith %}
-                                    </template>
-                                </div>
-                            </div>
-                        </template>
-
-                        <template x-if="volume?.details?.locations?.length > 0">
-                            <div>
-                                <h3 class="text-lg font-bold mb-3 text-gray-200">Locations</h3>
-                                <div class="flex flex-wrap gap-2">
-                                    <template x-for="name in volume.details.locations" :key="name">
-                                        {% with type='location', item='name' %}
-                                            {% include "partials/tag_chip.html" %}
-                                        {% endwith %}
-                                    </template>
-                                </div>
-                            </div>
-                        </template>
-                    </div>
-                </div>
-
             </div>
         </div>
     </div>
+
+
 </div>
 
 <script>

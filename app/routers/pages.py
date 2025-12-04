@@ -84,11 +84,17 @@ async def series_detail(request: Request, series: SeriesDep, db: SessionDep):
 
 
 @router.get("/volumes/{volume_id}", response_class=HTMLResponse)
-async def volume_detail(request: Request, volume: VolumeDep):
+async def volume_detail(request: Request, volume: VolumeDep, db: SessionDep):
     """Volume detail view"""
+
+    # Find the "Smart Cover" to use for colors/background
+    base_query = db.query(Comic).join(Volume).filter(Volume.id == volume.id)
+    cover_comic = get_smart_cover(base_query)
+
     return templates.TemplateResponse("comics/volume_detail.html", {
         "request": request,
-        "volume_id": volume.id
+        "volume_id": volume.id,
+        "cover": cover_comic
     })
 
 @router.get("/comics/{comic_id}", response_class=HTMLResponse)
