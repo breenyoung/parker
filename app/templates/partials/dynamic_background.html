@@ -28,6 +28,9 @@ function dynamicBackground() {
         style: 'NONE', // NONE, HERO, COLORSCAPE, HYBRID
         primary: '#000000',
         secondary: '#1a1a1a',
+        accent1: '#333333',
+        accent2: '#444444',
+        accent3: '#555555',
         imageUrl: '',
 
         async init() {
@@ -54,15 +57,22 @@ function dynamicBackground() {
             // The parent page (comic_detail, series_detail) must expose these variables globally
             this.primary = window.PAGE_CONTEXT.colors?.primary || '#000000';
             this.secondary = window.PAGE_CONTEXT.colors?.secondary || '#1a1a1a';
+            this.accent1 = window.PAGE_CONTEXT.colors?.accent1 || '#333333';
+            this.accent2 = window.PAGE_CONTEXT.colors?.accent2 || '#444444';
+            this.accent3 = window.PAGE_CONTEXT.colors?.accent3 || '#555555';
             this.imageUrl = window.PAGE_CONTEXT.imageUrl || '';
 
         },
 
         get gradientStyle() {
-            // Mesh Gradient style (Top-Left -> Bottom-Right)
-            return `background: radial-gradient(circle at 0% 0%, ${this.primary} 0%, transparent 50%),
-                                radial-gradient(circle at 100% 0%, ${this.secondary} 0%, transparent 50%),
-                                linear-gradient(to bottom, #111827 0%, #000 100%);`;
+            // Multi-color mesh gradient using all extracted colors
+            return `background:
+                radial-gradient(ellipse at 20% 20%, ${this.primary} 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 30%, ${this.secondary} 0%, transparent 50%),
+                radial-gradient(circle at 60% 70%, ${this.accent1} 0%, transparent 45%),
+                radial-gradient(circle at 30% 80%, ${this.accent2} 0%, transparent 40%),
+                radial-gradient(circle at 90% 85%, ${this.accent3} 0%, transparent 35%),
+                linear-gradient(to bottom, #111827 0%, #000 100%);`;
         }
     }
 }
