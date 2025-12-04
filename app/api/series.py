@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from sqlalchemy import func, case, Float
+from sqlalchemy.orm import joinedload
 from typing import List, Optional, Annotated
 from datetime import datetime
 
@@ -11,6 +12,7 @@ from app.api.deps import PaginationParams, PaginatedResponse
 # Import related models
 from app.models.comic import Comic, Volume
 from app.models.series import Series
+
 from app.models.collection import Collection, CollectionItem
 from app.models.reading_list import ReadingList, ReadingListItem
 from app.models.credits import Person, ComicCredit
@@ -41,14 +43,14 @@ async def get_series_detail(series_id: int, db: SessionDep, current_user: Curren
     """
     Get series summary including Related content and Metadata Details.
     """
-    series = db.query(Series).filter(Series.id == series_id).first()
+    series = db.query(Series).filter(Series.id == series_id).options(joinedload(Series.library)).first()
     if not series:
         raise HTTPException(status_code=404, detail="Series not found")
 
     if not current_user.is_superuser:
         allowed_ids = [lib.id for lib in current_user.accessible_libraries]
         if series.library_id not in allowed_ids:
-            raise HTTPException(status_code=404, detail="Library not found")
+            raise HTTPException(status_code=404, detail="Series not found")
 
     # 1. Get Volumes
     volumes = db.query(Volume).filter(Volume.series_id == series_id).all()
@@ -194,6 +196,7 @@ async def get_series_detail(series_id: int, db: SessionDep, current_user: Curren
         "id": series.id,
         "name": series.name,
         "library_id": series.library_id,
+        "library_name": series.library.name,
         "publisher": stats.publisher,
         "imprint": stats.imprint,
         "start_year": stats.start_year,
