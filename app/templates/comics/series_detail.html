@@ -6,7 +6,7 @@
 <div class="space-y-6" x-data="seriesDetail()">
 
     <div class="flex items-center space-x-2 text-gray-400 mb-6 text-sm" x-show="!error && !notFound" x-cloak>
-        <a :href="window.url(`/library/${series?.library_id}`)" class="hover:text-white">Library</a>
+        <a :href="window.url(`/library/${series?.library_id}`)" class="hover:text-white" x-text="series?.library_name"></a>
         <span>/</span>
         <span class="text-white" x-text="`${series?.name}`"></span>
     </div>
