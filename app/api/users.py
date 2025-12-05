@@ -19,6 +19,7 @@ from app.models.pull_list import PullList
 from app.core.security import get_password_hash
 from app.config import settings
 from app.services.images import ImageService
+from app.services.settings_service import SettingsService
 
 router = APIRouter()
 
@@ -57,6 +58,11 @@ async def get_user_dashboard(db: SessionDep, current_user: CurrentUser):
     """
     Aggregate stats and lists for the User Dashboard.
     """
+
+    # --- Check OPDS Status ---
+    settings_svc = SettingsService(db)
+    opds_enabled = settings_svc.get("server.opds_enabled")
+
     # 1. Calculate Stats
     # Join Progress -> Comic to get page counts
     stats_query = db.query(
@@ -97,6 +103,7 @@ async def get_user_dashboard(db: SessionDep, current_user: CurrentUser):
         })
 
     return {
+        "opds_enabled": opds_enabled,
         "user": {
             "username": current_user.username,
             "created_at": current_user.created_at,

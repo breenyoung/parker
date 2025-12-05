@@ -86,6 +86,14 @@ class SettingsService:
                 {"label": "Error", "value": "ERROR"},
             ]
         },
+        {
+            "key": "server.opds_enabled", "value": "false",
+            "category": "server", "data_type": "bool",
+            "label": "Enable OPDS Feed",
+            "description": "Allows external readers (Chunky, Panels) to access library via /opds using Basic Auth."
+        },
+
+
     ]
 
     def initialize_defaults(self):

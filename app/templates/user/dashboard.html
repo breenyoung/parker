@@ -84,6 +84,45 @@
         </div>
 
         <div class="space-y-4">
+
+            <template x-if="data?.opds_enabled">
+                <div class="bg-gradient-to-br from-indigo-900/40 to-gray-800 p-5 rounded-lg border border-indigo-500/30 shadow-lg relative overflow-hidden">
+                    <div class="absolute -top-4 -right-4 w-16 h-16 bg-indigo-500 rounded-full blur-2xl opacity-20"></div>
+
+                    <div class="flex items-center justify-between mb-3 relative z-10">
+                        <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                            <span>📱</span> Connect Reader
+                        </h2>
+                        <span class="text-[10px] bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded border border-indigo-500/30">OPDS</span>
+                    </div>
+
+                    <p class="text-xs text-gray-400 mb-3">
+                        Read on your tablet using <b>Chunky</b>, <b>Panels</b>, or <b>Tachiyomi</b>.
+                    </p>
+
+                    <div class="relative flex items-center group">
+                        <input type="text" readonly
+                               :value="window.location.origin + '/opds/'"
+                               class="w-full bg-gray-900/80 border border-gray-600 text-gray-300 text-xs rounded-md px-3 py-2.5 font-mono focus:outline-none focus:border-indigo-500 transition-colors select-all"
+                               id="opds-input">
+
+                        <button @click="copyToClipboard(window.location.origin + '/opds/')"
+                                class="absolute right-1 p-1.5 bg-gray-700 hover:bg-white hover:text-black text-gray-300 rounded text-xs transition-colors shadow-sm"
+                                title="Copy URL">
+                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div class="mt-2 flex items-center gap-2 text-[10px] text-gray-500">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <span>Use your Parker username & password.</span>
+                    </div>
+                </div>
+            </template>
+
+
             <div class="flex justify-between items-center">
                 <h2 class="text-xl font-bold text-white flex items-center gap-2">
                     <span>🗃️</span> My Pull Lists
@@ -143,7 +182,21 @@ function dashboard() {
                 console.error(e);
             }
         },
-        
+
+        async copyToClipboard(text) {
+            try {
+                await navigator.clipboard.writeText(text);
+                window.comicServer.showToast("Feed URL copied!", "success");
+            } catch (err) {
+                console.error('Failed to copy!', err);
+                // Fallback for non-secure contexts if needed, though simpler is better
+                const input = document.getElementById('opds-input');
+                input.select();
+                document.execCommand('copy');
+                window.comicServer.showToast("Feed URL copied!", "success");
+            }
+        },
+
         formatDate(dateStr) {
             if(!dateStr) return '';
             return new Date(dateStr).toLocaleDateString(undefined, { year: 'numeric', month: 'long' });

@@ -10,7 +10,7 @@
     <name>Parker Media Server</name>
   </author>
 
-  {# Navigation Entries (Folders/Series) #}
+  {# --- NAVIGATION ENTRIES (Libraries/Series) --- #}
   {% for entry in entries %}
   <entry>
     <title>{{ entry.title }}</title>
@@ -18,7 +18,6 @@
     <updated>{{ entry.updated }}Z</updated>
     <content type="text">{{ entry.summary or "" }}</content>
 
-    {# The Link to the next level #}
     <link rel="subsection"
           type="application/atom+xml;profile=opds-catalog;kind=navigation"
           href="{{ entry.link }}"/>
@@ -31,23 +30,57 @@
   </entry>
   {% endfor %}
 
-  {# Acquisition Entries (Actual Files) #}
+  {# --- ACQUISITION ENTRIES (The Comics) --- #}
   {% for book in books %}
   <entry>
-    <title>{{ book.title }} - #{{ book.number }}</title>
+    <title>{{ book.series.name }} #{{ book.number }} - {{ book.title }}</title>
     <id>urn:parker:comic:{{ book.id }}</id>
     <updated>{{ book.updated_at.isoformat() }}Z</updated>
-    <author><name>{{ book.writers[0] if book.writers else "Unknown" }}</name></author>
-    <content type="text">{{ book.summary or "" }}</content>
 
-    {# Thumbnail #}
+    {# 1. Authors / Credits #}
+    {% if book.writers %}
+        {% for writer in book.writers %}
+        <author><name>{{ writer }}</name></author>
+        {% endfor %}
+    {% else %}
+        <author><name>Unknown</name></author>
+    {% endif %}
+
+    {# 2. Publisher & Date #}
+    {% if book.publisher %}
+    <dcterms:publisher>{{ book.publisher }}</dcterms:publisher>
+    {% endif %}
+
+    {% if book.year %}
+    <dcterms:issued>{{ book.year }}-{{ '%02d' % book.month|default(1) }}-{{ '%02d' % book.day|default(1) }}</dcterms:issued>
+    {% endif %}
+
+    <dcterms:language>{{ book.language_iso or 'en' }}</dcterms:language>
+
+    {# 3. Rich Metadata (Story Arcs, Genres) #}
+    {% if book.story_arc %}
+    <category term="{{ book.story_arc }}" scheme="http://parker/tags/story_arc" label="Story Arc"/>
+    {% endif %}
+
+    {% for genre in book.genres %}
+    <category term="{{ genre.name }}" scheme="http://parker/tags/genre" label="Genre"/>
+    {% endfor %}
+
+    <content type="text">{{ book.summary or "No summary available." }}</content>
+
+    {# 4. Images #}
     <link rel="http://opds-spec.org/image"
           type="image/jpeg"
           href="/api/comics/{{ book.id }}/thumbnail"/>
 
-    {# The Download Link #}
+    <link rel="http://opds-spec.org/image/thumbnail"
+          type="image/jpeg"
+          href="/api/comics/{{ book.id }}/thumbnail"/>
+
+    {# 5. Download Link with File Size #}
     <link rel="http://opds-spec.org/acquisition"
           type="application/zip"
+          length="{{ book.file_size }}"
           href="/opds/download/{{ book.id }}"/>
   </entry>
   {% endfor %}

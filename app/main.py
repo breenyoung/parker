@@ -41,6 +41,9 @@ from app.api import pull_lists
 # Frontend Routes (HTML)
 from app.routers import pages, admin
 
+# OPDS Routes
+from app.routers import opds
+
 # Setup logging
 #logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -140,6 +143,19 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
 
+
+    # --- Allow OPDS/API to handle their own Auth errors ---
+    # If we are in the API or OPDS, do NOT redirect to the HTML login page.
+    # We must return the raw JSON/Error so the Basic Auth header is sent to the client.
+    if request.url.path.startswith(("/opds", "/api")):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"detail": exc.detail},
+            headers=exc.headers  # CRITICAL: This passes the 'WWW-Authenticate' header
+        )
+    # --- FIX END ---
+
+    # Standard Web UI Logic
     # If HTML request and 401, redirect to Login
     if exc.status_code == 401 and "text/html" in request.headers.get("accept", ""):
         return RedirectResponse(url="/login")
@@ -198,6 +214,9 @@ app.include_router(pages.router)
 # 3. Admin Routers (HTML)
 # We add the /admin prefix here so we don't have to type it in every route in admin.py
 app.include_router(admin.router, prefix="/admin")
+
+# OPDS Routers
+app.include_router(opds.router)
 
 # Health check endpoint
 @app.get("/health")
