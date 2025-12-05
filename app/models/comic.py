@@ -51,10 +51,10 @@ class Comic(Base):
     credits = relationship("ComicCredit", back_populates="comic", cascade="all, delete-orphan")
 
     # Publishing info
-    publisher = Column(String)
+    publisher = Column(String, index=True)
     imprint = Column(String)
     format = Column(String)
-    series_group = Column(String)
+    series_group = Column(String, index=True)
 
     # Scan info
     scan_information = Column(String)
