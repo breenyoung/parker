@@ -165,7 +165,7 @@ async def get_comic_reader_init(comic_id: int,
         # Fallback to Physical (Slow but accurate)
         # This handles legacy scans or edge cases
         image_service = ImageService()
-        page_count = image_service.get_page_count(comic.file_path)
+        page_count = image_service.get_page_count(str(comic.file_path))
 
         # No Self-heal the DB record here
         # GET requests shouldn't write to DB to avoid locks.
@@ -197,6 +197,7 @@ def get_comic_page(
         db: SessionDep,
         sharpen: Annotated[bool, Query()] = False,
         grayscale: Annotated[bool, Query()] = False,
+        webp: Annotated[bool, Query()] = False
 ):
     """
     Get a specific page image from a comic.  Supports server-side sharpening and grayscale.
@@ -207,6 +208,7 @@ def get_comic_page(
         db: Database session
         sharpen: If true, sharpen the image
         grayscale: If true, convert the image to grayscale
+        webp: If true, convert the image to webp
     """
     comic = db.query(Comic).filter(Comic.id == comic_id).first()
 
@@ -214,29 +216,43 @@ def get_comic_page(
         raise HTTPException(status_code=404, detail="Comic not found")
 
     image_service = ImageService()
-    image_bytes, is_correct_format = image_service.get_page_image(comic.file_path, page_index, sharpen=sharpen, grayscale=grayscale)
+    image_bytes, is_correct_format, mime_type = image_service.get_page_image(
+        str(comic.file_path),
+        page_index,
+        sharpen=sharpen,
+        grayscale=grayscale,
+        transcode_webp=webp
+    )
 
     if not image_bytes:
         raise HTTPException(status_code=404, detail="Page not found")
 
+    # 3. Construct Headers
+    # We use the returned mime_type to determine the correct extension for the browser
+    extension = "webp" if mime_type == "image/webp" else "jpg"
+
+    # Check if the original detected type was PNG/GIF for the filename if we didn't transcode
+    if not webp and mime_type == "image/png": extension = "png"
+    if not webp and mime_type == "image/gif": extension = "gif"
+
     # Detect image type from bytes
     # If filtered, it's always JPEG. If raw, detect type.
-    if sharpen or grayscale:
-        media_type = "image/jpeg"
-    elif image_bytes.startswith(b'\xff\xd8\xff'):
-        media_type = "image/jpeg"
-    elif image_bytes.startswith(b'\x89PNG'):
-        media_type = "image/png"
-    elif image_bytes.startswith(b'GIF'):
-        media_type = "image/gif"
-    elif image_bytes.startswith(b'RIFF') and b'WEBP' in image_bytes[:20]:
-        media_type = "image/webp"
-    else:
-        media_type = "image/jpeg"  # Default
+    # if sharpen or grayscale:
+    #     media_type = "image/jpeg"
+    # elif image_bytes.startswith(b'\xff\xd8\xff'):
+    #     media_type = "image/jpeg"
+    # elif image_bytes.startswith(b'\x89PNG'):
+    #     media_type = "image/png"
+    # elif image_bytes.startswith(b'GIF'):
+    #     media_type = "image/gif"
+    # elif image_bytes.startswith(b'RIFF') and b'WEBP' in image_bytes[:20]:
+    #     media_type = "image/webp"
+    #else:
+    #    media_type = "image/jpeg"  # Default
 
     # CACHE LOGIC
     headers = {
-        "Content-Disposition": f'inline; filename="page_{page_index}.jpg"'
+        "Content-Disposition": f'inline; filename="page_{page_index}.{extension}"'
     }
 
     if is_correct_format:
@@ -250,6 +266,6 @@ def get_comic_page(
 
     return Response(
         content=image_bytes,
-        media_type=media_type,
+        media_type=mime_type,
         headers=headers
     )

@@ -267,6 +267,14 @@
         <h3 class="text-sm font-bold text-gray-400 uppercase mb-4">Display Options</h3>
 
         <div class="space-y-4">
+
+            <div class="flex items-center justify-between">
+                <label class="text-sm" title="Reduces bandwidth by converting images to WebP">
+                    Reduce Data Usage
+                </label>
+                <input type="checkbox" x-model="filters.transcode" class="rounded bg-gray-700 border-gray-600 text-blue-500 focus:ring-0" x-on:change="$el.blur()">
+            </div>
+
             <div class="flex items-center justify-between">
                 <label class="text-sm">Black & White</label>
                 <input type="checkbox" x-model="filters.grayscale" class="rounded bg-gray-700 border-gray-600 text-blue-500 focus:ring-0" x-on:change="$el.blur()">
@@ -465,6 +473,7 @@ function reader() {
 
         // Filter State
         filters: {
+            transcode: false,
             grayscale: false,
             sharpen: false,
             brightness: 100,
@@ -541,6 +550,7 @@ function reader() {
 
             // Append Server-Side Filters
             const params = new URLSearchParams();
+            if (this.filters.transcode) params.append('webp', 'true');
             if (this.filters.sharpen) params.append('sharpen', 'true');
             if (this.filters.grayscale) params.append('grayscale', 'true');
 
@@ -564,6 +574,7 @@ function reader() {
 
             // Append Server-Side Filters
             const params = new URLSearchParams();
+            if (this.filters.transcode) params.append('webp', 'true');
             if (this.filters.sharpen) params.append('sharpen', 'true');
             if (this.filters.grayscale) params.append('grayscale', 'true');
 
@@ -707,7 +718,7 @@ function reader() {
         },
 
         resetFilters() {
-            this.filters = { grayscale: false, sharpen: false, brightness: 100, contrast: 100 };
+            this.filters = { transcode: false, grayscale: false, sharpen: false, brightness: 100, contrast: 100 };
         },
 
         async updateProgress() {
