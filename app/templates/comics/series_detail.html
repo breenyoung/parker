@@ -38,29 +38,32 @@
         </div>
 
         <div x-show="!loading && !error && series" style="display: none;" x-cloak>
+
             <div class="bg-gray-800 rounded-lg p-6 mb-6 shadow-lg border border-gray-700">
-                <div class="flex items-start space-x-6">
+
+                <div class="flex flex-col md:flex-row items-center md:items-start gap-6">
+
                     <div class="flex-shrink-0">
-                        <div x-show="series?.first_issue_id" class="w-48 h-72 bg-gray-700 rounded-lg overflow-hidden shadow-lg">
+                        <div x-show="series?.first_issue_id" class="w-40 h-60 md:w-48 md:h-72 bg-gray-700 rounded-lg overflow-hidden shadow-lg mx-auto md:mx-0">
                             <img
                                 :src="series?.first_issue_id ? window.url(`/api/comics/${series.first_issue_id}/thumbnail?width=300&height=450`) : ''"
                                 :alt="series?.name"
                                 class="w-full h-full object-cover"
                             >
                         </div>
-                        <div x-show="!series?.first_issue_id" class="w-48 h-72 bg-gray-700 rounded-lg flex items-center justify-center text-gray-500">
+                        <div x-show="!series?.first_issue_id" class="w-40 h-60 md:w-48 md:h-72 bg-gray-700 rounded-lg flex items-center justify-center text-gray-500 mx-auto md:mx-0">
                             No Cover
                         </div>
                     </div>
 
-                    <div class="flex-1">
-                        <h1 class="text-4xl font-bold mb-2 text-white" x-text="series?.name"></h1>
+                    <div class="flex-1 w-full text-center md:text-left">
+                        <h1 class="text-3xl md:text-4xl font-bold mb-3 text-white leading-tight" x-text="series?.name"></h1>
 
-
-                        <div class="flex items-center gap-3">
+                        <div class="flex flex-wrap items-center justify-center md:justify-start gap-3 mb-4">
                             <template x-if="series?.resume_to?.comic_id">
                                 {% include "partials/read_series_button.html" %}
                             </template>
+
                             <button
                                 x-on:click="toggleStar()"
                                 class="p-2 rounded-full transition-colors focus:outline-none"
@@ -72,10 +75,8 @@
                                 </svg>
                             </button>
 
-
                             {% from "partials/cover_browser_link.html" import cover_browser_link %}
                             {{ cover_browser_link("series", series_id) }}
-
 
                             <button
                                 x-on:click="regenerateThumbnails()"
@@ -86,12 +87,11 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                 </svg>
                             </button>
-
-
                         </div>
 
-                        <div class="space-y-2 text-lg">
-                            <div class="text-gray-400 flex items-center gap-2">
+                        <div class="space-y-3 text-lg">
+
+                            <div class="text-gray-400 flex flex-wrap items-center justify-center md:justify-start gap-2">
                                 <span class="text-gray-500">Publisher:</span>
 
                                 {% with publisher_ref="series?.publisher" %}
@@ -99,26 +99,22 @@
                                 {% endwith %}
 
                                 <template x-if="series?.publisher && series?.imprint">
-                                    <span class="text-gray-600">|</span>
+                                    <span class="text-gray-600 hidden md:inline">|</span>
                                 </template>
 
                                 {% with imprint_ref="series?.imprint" %}
                                     {% include "partials/imprint_link.html" %}
                                 {% endwith %}
-
-                                <span x-show="!series?.publisher" class="text-gray-600 text-sm italic">...</span>
                             </div>
 
                             <p class="text-gray-400">
                                 <span class="text-gray-500">Started:</span>
-
                                 {% with year_ref="series?.start_year" %}
                                     {% include "partials/year_link.html" %}
                                 {% endwith %}
-
                             </p>
 
-                            <div class="flex items-center space-x-4 text-sm text-gray-500 mt-4">
+                            <div class="flex flex-wrap items-center justify-center md:justify-start gap-2 text-sm text-gray-500 mt-4">
                                 <span class="bg-gray-700 px-3 py-1 rounded-full text-gray-300 border border-gray-600" x-text="`${series?.volume_count || 0} Vols`"></span>
 
                                 <template x-if="!isStandalone">
@@ -134,8 +130,8 @@
                                 </template>
                             </div>
 
-                            <div class="flex flex-wrap items-center gap-4 text-sm text-gray-500 mt-4">
-                                <span class="hidden sm:inline text-gray-700">|</span>
+                            <div class="flex flex-wrap items-center justify-center md:justify-start gap-4 text-sm text-gray-500 mt-4">
+                                <span class="hidden md:inline text-gray-700">|</span>
 
                                 <span class="flex items-center gap-1" title="Total Page Count">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-600" viewBox="0 0 20 20" fill="currentColor">
@@ -157,7 +153,6 @@
                                     </svg>
                                     <span x-text="window.comicServer.formatBytes(series?.file_size)"></span>
                                 </span>
-
                             </div>
 
                         </div>

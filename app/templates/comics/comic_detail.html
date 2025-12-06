@@ -44,7 +44,7 @@
         <div x-show="!loading && !error && comic" style="display: none;" class="grid grid-cols-1 md:grid-cols-3 gap-8">
 
             <div class="md:col-span-1 space-y-6">
-                <div class="aspect-[2/3] bg-gray-800 rounded-lg overflow-hidden shadow-2xl relative group border border-gray-700">
+                <div class="w-64 mx-auto md:w-full aspect-[2/3] bg-gray-800 rounded-lg overflow-hidden shadow-2xl relative group border border-gray-700">
                     <img
                         :src="window.url(`/api/comics/${comicId}/thumbnail?width=400&height=600`)"
                         :alt="comic?.title"
