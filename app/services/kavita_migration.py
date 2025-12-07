@@ -13,6 +13,7 @@ from sqlalchemy import text
 
 from app.core.security import get_password_hash, verify_password
 
+from app.models.library import Library
 from app.models.user import User
 from app.models.comic import Comic, Volume
 from app.models.series import Series
@@ -69,44 +70,53 @@ class KavitaMigrationService:
         created_credentials = []
 
         for k_user in kavita_users:
+
             username = k_user['UserName']
             email = k_user['Email']
             is_admin = k_user['IsAdmin'] == 1
+            k_id = k_user['Id']
+
+            p_user = None
 
             # Check if user already exists
             if username.lower() in existing_map:
                 p_user = existing_map[username.lower()]
-                self.user_map[k_user['Id']] = p_user.id
+                self.user_map[k_id] = p_user.id
                 logger.info(f"User match found: {username}")
-                continue
+            else:
+                # Create New User
+                temp_password = self._generate_temp_password()
+                hashed_pw = get_password_hash(temp_password)
 
-            # Create New User
-            temp_password = self._generate_temp_password()
-            hashed_pw = get_password_hash(temp_password)
+                new_user = User(
+                    username=username,
+                    email=email if email else None,
+                    hashed_password=hashed_pw,
+                    is_superuser=is_admin,
+                    is_active=True
+                )
 
-            new_user = User(
-                username=username,
-                email=email if email else None,
-                hashed_password=hashed_pw,
-                is_superuser=is_admin,
-                is_active=True
-            )
+                self.db.add(new_user)
+                self.db.flush()  # Flush to get the ID
 
-            self.db.add(new_user)
-            self.db.flush()  # Flush to get the ID
+                # Update Map
+                self.user_map[k_id] = new_user.id
 
-            # Update Map
-            self.user_map[k_user['Id']] = new_user.id
+                # Store credential for CSV
+                created_credentials.append({
+                    "username": username,
+                    "temporary_password": temp_password,
+                    "email": email or "N/A",
+                    "role": "Admin" if is_admin else "User"
+                })
 
-            # Store credential for CSV
-            created_credentials.append({
-                "username": username,
-                "temporary_password": temp_password,
-                "email": email or "N/A",
-                "role": "Admin" if is_admin else "User"
-            })
+                logger.info(f"Created new user: {username}")
 
-            logger.info(f"Created new user: {username}")
+            # B. Sync Library Permissions (Critical for Non-Admins)
+            # In Parker, Admins (is_superuser) usually have implicit access to everything.
+            # We only strictly need to map libraries for standard users.
+            if p_user and not p_user.is_superuser:
+                self._sync_library_permissions(k_id, p_user)
 
         self.db.commit()
 
@@ -120,6 +130,52 @@ class KavitaMigrationService:
             return output.getvalue()
 
         return None
+
+    def _sync_library_permissions(self, kavita_user_id: int, parker_user: User):
+        """
+        Looks up library access in Kavita and mirrors it to Parker.
+        """
+        # 1. Get Kavita Library IDs for this user
+        # Table is usually 'AppUserLibrary' with columns 'AppUserId', 'LibraryId'
+        try:
+            rows = self.kavita_conn.execute(
+                "SELECT LibraryId FROM AppUserLibrary WHERE AppUserId = ?",
+                (kavita_user_id,)
+            ).fetchall()
+            allowed_k_libs = [r['LibraryId'] for r in rows]
+        except sqlite3.OperationalError:
+            # Fallback: older Kavita versions or different schema?
+            # If table doesn't exist, assume no restrictions or handle gracefully.
+            logger.warning("Could not find AppUserLibrary table in Kavita DB. Skipping permission sync.")
+            return
+
+        if not allowed_k_libs:
+            return
+
+        # 2. Map Kavita Library ID -> Name
+        # We fetch all libraries to build a lookup map
+        k_libs = self.kavita_conn.execute("SELECT Id, Name FROM Library").fetchall()
+        k_lib_map = {row['Id']: row['Name'] for row in k_libs}
+
+        # 3. Find Matching Parker Libraries
+        parker_libs = self.db.query(Library).all()
+        p_lib_map = {lib.name.lower(): lib for lib in parker_libs}
+
+        # 4. Assign Permissions
+        # We clear existing (or append? Safe to clear and re-set for migration consistency)
+        # parker_user.accessible_libraries = []
+
+        for k_lib_id in allowed_k_libs:
+            if k_lib_id in k_lib_map:
+                k_name = k_lib_map[k_lib_id]
+                # Match by Name (Case Insensitive)
+                if k_name.lower() in p_lib_map:
+                    matched_lib = p_lib_map[k_name.lower()]
+
+                    # Avoid duplicates
+                    if matched_lib not in parker_user.accessible_libraries:
+                        parker_user.accessible_libraries.append(matched_lib)
+                        logger.info(f"Granted access to library '{matched_lib.name}' for user '{parker_user.username}'")
 
     def _generate_temp_password(self, length=12):
         alphabet = string.ascii_letters + string.digits
