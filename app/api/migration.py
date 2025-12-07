@@ -48,6 +48,15 @@ async def run_kavita_migration(
             # 4. Migrate Progress
             stats = service.migrate_progress()
 
+            # Commit the transaction
+            db.commit()
+
+        except Exception:
+            # FAILURE! Undo everything.
+            # This ensures we don't create users without delivering the password CSV.
+            db.rollback()
+            raise  # Re-raise to trigger the outer exception handler
+
         finally:
             # 5. Cleanup Service connections
             # Ensure SQLite connection is closed even if migration fails

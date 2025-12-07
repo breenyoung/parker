@@ -138,8 +138,6 @@ class KavitaMigrationService:
             if p_user and not p_user.is_superuser:
                 self._sync_library_permissions(k_id, p_user)
 
-        self.db.commit()
-
         # Generate CSV if we created new users
         if created_credentials:
             output = io.StringIO()
