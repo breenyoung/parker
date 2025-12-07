@@ -95,9 +95,14 @@ class ComicArchive:
 
             # 2. COVER PRIORITY
             # Check for explicit cover naming conventions using regex word boundaries.
+            # Regex updated to handle:
+            # - Underscore prefixes (e.g. "_cover") which \b misses because _ is a word char
+            # - "scan" keyword (e.g. "scan.jpg" vs "scan01.jpg")
+            # This ensures "scan01" doesn't trigger it (0 is a word char), but "scan.jpg" does.
+            # Pattern: (Start/NonWord/_) + Keyword + (End/NonWord/_)
             # matches " fc ", "fc.", "-fc", etc.
             # 0 = Cover (Highest Priority), 1 = Standard Page
-            is_cover = 0 if re.search(r'\b(fc|cover|front)\b', text) else 1
+            is_cover = 0 if re.search(r'(?:^|[\W_])(fc|cover|front|scan)(?:$|[\W_])', text) else 1
 
             # 3. SEPARATOR HACK (From previous fix)
             # Replace separators with high-ASCII char '~' to ensure letters sort before symbols.
