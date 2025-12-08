@@ -323,25 +323,36 @@
                         'gap-0': true
                      }">
 
-            <template x-if="pagesToDisplay[0]">
-                <img
-                    :src="getPageUrl(pagesToDisplay[0].index)"
-                    :class="imageClasses"
-                    :style="imageStyles"
-                    class="reader-page object-contain"
-                    alt="Page"
-                >
+
+            <template x-for="(page, idx) in pagesToDisplay" :key="page.index">
+                    <img
+                        :src="getPageUrl(page.index)"
+                        :class="imageClasses"
+                        class="reader-page"
+                        :class="{
+                            'object-right': viewMode === 'double' && pagesToDisplay.length > 1 && idx === 0,
+                            'object-left': viewMode === 'double' && pagesToDisplay.length > 1 && idx === 1
+                        }"
+                        :style="imageStyles"
+                        alt="Page"
+                    >
             </template>
 
-            <template x-if="pagesToDisplay[1]">
-                <img
-                    :src="getPageUrl(pagesToDisplay[1].index)"
-                    :class="imageClasses"
-                    :style="imageStyles"
-                    class="reader-page object-contain"
-                    alt="Page Next"
-                >
-            </template>
+
+            {# Comic spine emulation #}
+            <div class="absolute inset-y-0 left-1/2 w-24 -translate-x-1/2 pointer-events-none z-20"
+                 x-show="viewMode === 'double' && pagesToDisplay.length === 2"
+                 x-transition:enter="transition-opacity duration-200"
+                 x-transition:enter-start="opacity-0"
+                 x-transition:enter-end="opacity-100"
+                 style="background: linear-gradient(90deg,
+                        transparent 0%,
+                        rgba(0,0,0,0.05) 30%,
+                        rgba(0,0,0,0.4) 50%,
+                        rgba(0,0,0,0.05) 70%,
+                        transparent 100%);">
+            </div>
+
 
         </div>
 
@@ -641,10 +652,13 @@ function reader() {
                 // Standard Double Page: Two images side-by-side.
                 // Cap them at 50vw so they fit.
                 // REMOVED mx-auto: This fixes the gap.
-                return 'max-w-[50vw] max-h-screen object-contain';
+                // Use 'w-1/2' (50% width) instead of 'max-w-[50vw]'.
+                // This reserves the screen space instantly, preventing the "fill" animation.
+                // Also add 'h-screen' to ensure the vertical bounding box is stable.
+                return 'w-1/2 h-screen object-contain';
             } else {
                 // Single View OR Smart Spread (Wide image acting as single)
-                return 'max-w-full max-h-screen object-contain';
+                return 'w-full h-screen object-contain';
             }
 
             // In double mode, each image takes up max 50% width
