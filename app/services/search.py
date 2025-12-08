@@ -95,7 +95,9 @@ class SearchService:
             # Simplification: We filter on Library Name
             return self._build_simple_field_condition(Library.name, operator, value, needs_join=Library)
 
-        elif field in ['title', 'number', 'publisher', 'imprint', 'format', 'year', 'series_group', 'summary', 'web']:
+        elif field in ['title', 'number', 'publisher', 'imprint', 'format',
+                       'year', 'series_group', 'summary', 'web',
+                       'age_rating', 'language', 'rating']:
             # Map string field name to Column object
             col_map = {
                 'title': Comic.title,
@@ -106,7 +108,10 @@ class SearchService:
                 'year': Comic.year,
                 'series_group': Comic.series_group,
                 'summary': Comic.summary,
-                'web': Comic.web
+                'web': Comic.web,
+                'age_rating': Comic.age_rating,
+                'language': Comic.language_iso,
+                'rating': Comic.community_rating
             }
             return self._build_simple_field_condition(col_map[field], operator, value)
 
@@ -263,7 +268,9 @@ class SearchService:
             'series_group': Comic.series_group,
             'summary': Comic.summary,
             'web': Comic.web,
-            'rating': Comic.community_rating
+            'rating': Comic.community_rating,
+            'age_rating': Comic.age_rating,
+            'language': Comic.language_iso,
         }
 
         # For relationship fields
