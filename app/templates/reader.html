@@ -176,7 +176,7 @@
      x-on:touchstart="handleTouchStart($event)"
      x-on:touchend="handleTouchEnd($event)">
 
-    <div class="reader-toolbar">
+    <div class="reader-toolbar" :class="{'hidden': !shouldShowUI}">
 
         <!-- Left side close button + Comic information -->
         <div class="flex items-center space-x-4 max-w-[50%]">
@@ -203,6 +203,8 @@
 
         <!-- Right side icons -->
         <div class="flex items-center space-x-2">
+
+            <span class="text-gray-400 text-xs font-mono font-bold mr-3 hidden md:block" x-text="currentTime"></span>
 
             <button x-on:click="toggleUiLock()" class="p-2 rounded hover:bg-white/10 transition-colors"
                     :class="uiLocked ? 'text-blue-400' : 'text-gray-300'"
@@ -497,6 +499,9 @@
 <script>
 function reader() {
     return {
+
+        currentTime: '',
+
         // --- Core State ---
         comicId: {{ comic_id }},
         currentPage: 0,
@@ -523,6 +528,7 @@ function reader() {
         scrubberValue: 0,
         isScrubbing: false,  // True while dragging
         isHoveringScrubber: false,
+        tapVisible: false,
         uiLocked: false,  // If true, UI is always on
         isHoveringZone: false,  // If true, mouse is at the bottom
         isHoveringBar: false,  // The actual button bar
@@ -544,6 +550,12 @@ function reader() {
         },
 
         init() {
+
+            // Initialize Clock
+            this.updateClock();
+
+            // Start Timer (Update every minute is usually enough, but seconds works too)
+            setInterval(() => { this.updateClock(); }, 1000);
 
             // Load settings from local storage
             this.viewMode = localStorage.getItem('reader_viewMode') || 'single';
@@ -1040,8 +1052,9 @@ function reader() {
         // Computed property for visibility
         get shouldShowUI() {
 
-            return this.uiLocked
-                || this.isHoveringZone
+            return this.uiLocked        // Persistent Pin
+                || this.tapVisible      // Transient Tap
+                || this.isHoveringZone  // Mouse Hover
                 || this.showSettings
                 || this.showGoto
                 || this.isScrubbing
@@ -1100,7 +1113,16 @@ function reader() {
 
             // Center Tap: Toggle UI Visibility
             if (zone === 'center') {
-                this.toggleUiLock();
+
+                // If the UI is already pinned (Locked), tapping center does nothing
+                // (or you could make it unpin, but standard behavior is "Pin overrides all")
+                if (this.uiLocked) {
+                     window.comicServer.showToast("UI is Pinned. Use Eye icon to unlock.");
+                     return;
+                }
+
+                // Standard Toggle
+                this.tapVisible = !this.tapVisible;
                 return;
             }
 
@@ -1179,6 +1201,10 @@ function reader() {
             } else {
                 this.nextPage();
             }
+        },
+
+        updateClock() {
+            this.currentTime = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
         },
 
     }
