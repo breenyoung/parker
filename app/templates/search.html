@@ -132,9 +132,10 @@
                                     <input
                                         type="text"
                                         x-model="input"
+                                        x-show="!(['equal', 'not_equal'].includes(rule.operator) && tags.length > 0)"
                                         @input.debounce.300ms="fetchSuggestions()"
-                                        @keydown.enter.prevent="addTag()"
-                                        @keydown.backspace="handleBackspace()"
+                                        x-on:keydown.enter.prevent="addTag()"
+                                        x-on:keydown.backspace="handleBackspace()"
                                         x-on:blur="addTag()"
                                         class="bg-transparent border-none focus:ring-0 text-white flex-1 min-w-[120px] outline-none h-8 px-1"
                                         placeholder="Type to find..."
@@ -541,7 +542,22 @@ document.addEventListener('alpine:init', () => {
                     // If the user typed nothing in a text box, send null to be safe,
                     // but for tags (arrays), send the array.
                     value: (Array.isArray(r.value) && r.value.length === 0) ? null : r.value
-                })).filter(r => r.operator === 'is_empty' || r.operator === 'is_not_empty' || r.value !== null), // Filter out incomplete rules
+                })).filter(r => {
+
+                    // ALWAYS KEEP: Operators that don't need values
+                    if (['is_empty', 'is_not_empty'].includes(r.operator)) return true;
+
+                    // REMOVE: Null or Undefined
+                    if (r.value === null || r.value === undefined) return false;
+
+                    // REMOVE: Empty Strings
+                    if (typeof r.value === 'string' && r.value.trim() === '') return false;
+
+                    // REMOVE: Empty Arrays (Tags)
+                    if (Array.isArray(r.value) && r.value.length === 0) return false;
+
+                    return true;
+                }),
                 sort_by: this.sortBy,
                 sort_order: this.sortOrder,
                 limit: parseInt(this.limit)
