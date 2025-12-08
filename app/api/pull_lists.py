@@ -13,7 +13,7 @@ from app.models.tags import Character, Team, Location
 from app.models.credits import Person, ComicCredit
 
 
-from app.schemas.pull_list import PullListCreate, PullListUpdate, AddComicRequest, ReorderRequest
+from app.schemas.pull_list import PullListCreate, PullListUpdate, AddComicRequest, ReorderRequest, BatchAddComicRequest
 
 router = APIRouter()
 
@@ -202,3 +202,51 @@ def reorder_list_items(list_id: int, order_data: ReorderRequest, db: SessionDep,
 
     db.commit()
     return {"message": "List reordered successfully"}
+
+
+@router.post("/{list_id}/items/batch")
+def batch_add_items_to_list(list_id: int, batch_data: BatchAddComicRequest, db: SessionDep, current_user: CurrentUser):
+    """Batch add multiple comics to the bottom of the list."""
+
+    # 1. Verify ownership
+    plist = db.query(PullList).filter(PullList.id == list_id, PullList.user_id == current_user.id).first()
+    if not plist:
+        raise HTTPException(status_code=404, detail="Pull list not found")
+
+    if not batch_data.comic_ids:
+        return {"message": "No comics selected"}
+
+    # 2. Filter out duplicates (Comics already in this list)
+    existing_ids = db.query(PullListItem.comic_id).filter(
+        PullListItem.pull_list_id == list_id,
+        PullListItem.comic_id.in_(batch_data.comic_ids)
+    ).all()
+    existing_set = {r[0] for r in existing_ids}
+
+    # Only insert new ones
+    new_ids = [cid for cid in batch_data.comic_ids if cid not in existing_set]
+
+    if not new_ids:
+        return {"message": "All selected comics are already in this list"}
+
+    # 3. Calculate Sort Order
+    # Find current max order
+    max_order = db.query(func.max(PullListItem.sort_order)) \
+        .filter(PullListItem.pull_list_id == list_id).scalar()
+
+    current_order = (max_order if max_order is not None else -1) + 1
+
+    # 4. Bulk Insert
+    new_items = []
+    for cid in new_ids:
+        new_items.append(PullListItem(
+            pull_list_id=list_id,
+            comic_id=cid,
+            sort_order=current_order
+        ))
+        current_order += 1
+
+    db.add_all(new_items)
+    db.commit()
+
+    return {"message": f"Added {len(new_items)} comics to list"}

@@ -7,13 +7,6 @@
             // e.detail.read contains true/false
             this.setBatchReadStatus(e.detail.read);
         });
-
-        // 2. Listen for 'Add to Collection'
-        window.addEventListener('open-batch-collection', () => {
-            this.collectionModalOpen = true;
-            // You might dispatch another event here to tell the modal inside to fetch data
-            this.$dispatch('fetch-collections-list');
-        });
     },
 
     async setBatchReadStatus(isRead) {

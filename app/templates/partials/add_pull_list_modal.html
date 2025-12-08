@@ -9,7 +9,7 @@
      x-transition:leave="transition ease-in duration-100"
      x-transition:leave-start="opacity-100"
      x-transition:leave-end="opacity-0"
-     @click.self="close()">
+     x-on:click.self="close()">
 
     <div class="bg-gray-800 border border-gray-700 p-6 rounded-lg shadow-2xl w-full max-w-md transform transition-all"
          x-transition:enter="scale-95"
@@ -68,19 +68,37 @@ function addPullListModal() {
         myLists: [],
         newListName: '',
 
-        // Context of what we are adding
+        // State can now hold a single ID OR an array of IDs
         targetId: null,
-        targetType: 'comic', // 'comic', 'volume', 'series'
+        targetType: 'comic',
+        batchIds: [],
+        isBatch: false,
 
         init() {
             // Optional: Pre-fetch lists once on load if you want
         },
 
         async open(detail) {
-            this.targetId = detail.id;
-            this.targetType = detail.type || 'comic';
             this.show = true;
             this.newListName = '';
+
+            // RESET STATE
+            this.targetId = null;
+            this.batchIds = [];
+            this.isBatch = false;
+
+            // DETECT MODE
+            if (detail.ids && Array.isArray(detail.ids)) {
+                // Batch Mode (from Action Bar)
+                this.isBatch = true;
+                this.batchIds = detail.ids;
+                this.targetType = 'comic'; // Batch is always comics for now
+            } else {
+                // Single Mode (from Comic Detail page)
+                this.isBatch = false;
+                this.targetId = detail.id;
+                this.targetType = detail.type || 'comic';
+            }
 
             if (this.myLists.length === 0) {
                 await this.fetchLists();
@@ -104,10 +122,31 @@ function addPullListModal() {
         },
 
         async addItemToList(listId) {
-            // FUTURE PROOFING:
-            // If targetType is 'volume' or 'series', we will need a different API call here later.
-            // For now, we assume 'comic'.
 
+            // BATCH MODE
+            if (this.isBatch) {
+                try {
+                    const res = await fetch(window.url(`/api/pull-lists/${listId}/items/batch`), {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ comic_ids: this.batchIds })
+                    });
+
+                    if (res.ok) {
+                        const data = await res.json();
+                        window.comicServer.showToast(data.message, 'success');
+                        this.close();
+
+                        // Clear the selection since we are done
+                        if (window.Alpine.store('batch')) {
+                             window.Alpine.store('batch').clear();
+                        }
+                    }
+                } catch (e) { console.error(e); }
+                return;
+            }
+
+            // INGLE MODE (Legacy Logic)
             if (this.targetType !== 'comic') {
                 alert("Bulk add for Volumes/Series requires a backend update! Coming soon.");
                 return;
@@ -121,19 +160,19 @@ function addPullListModal() {
                 });
 
                 if (res.ok) {
-                    if (window.comicServer) window.comicServer.showToast("Added to list!", 'success');
+                    window.comicServer.showToast("Added to list!", 'success');
                     this.close();
                 } else {
                     const err = await res.json();
-                    if (window.comicServer) window.comicServer.showToast(err.detail || "Failed to add", 'error');
+                    window.comicServer.showToast(err.detail || "Failed to add", 'error');
                 }
-            } catch (e) {
-                console.error(e);
-            }
+            } catch (e) { console.error(e); }
+
         },
 
         async createAndAdd() {
             if (!this.newListName) return;
+
             try {
                 const createRes = await fetch(window.url('/api/pull-lists/'), {
                     method: 'POST',
@@ -143,11 +182,9 @@ function addPullListModal() {
                 if (!createRes.ok) throw new Error("Failed to create list");
 
                 const newList = await createRes.json();
-                this.myLists.push(newList); // Add to local list to avoid re-fetch
+                this.myLists.push(newList);
                 await this.addItemToList(newList.id);
-            } catch (e) {
-                console.error(e);
-            }
+            } catch (e) { console.error(e); }
         }
     }
 }

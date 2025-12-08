@@ -16,3 +16,6 @@ class AddComicRequest(BaseModel):
 class ReorderRequest(BaseModel):
     # Accepts a list of Comic IDs in the new desired order
     comic_ids: List[int]
+
+class BatchAddComicRequest(BaseModel):
+    comic_ids: List[int]
