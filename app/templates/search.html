@@ -113,7 +113,7 @@
                     <div class="flex-1 w-full" x-show="!['is_empty', 'is_not_empty'].includes(rule.operator)">
 
                         <div x-show="['title', 'year', 'summary', 'web', 'rating'].includes(rule.field)">
-                            <input type="text" x-model="rule.value" class="w-full bg-gray-700 text-white rounded px-3 py-2 border border-gray-600 outline-none focus:border-blue-500">
+                            <input type="text" x-on:keydown.enter="performSearch()" x-model="rule.value" class="w-full bg-gray-700 text-white rounded px-3 py-2 border border-gray-600 outline-none focus:border-blue-500">
                         </div>
 
                         <div x-show="!['title', 'year', 'summary', 'web', 'rating'].includes(rule.field)">
@@ -135,6 +135,7 @@
                                         @input.debounce.300ms="fetchSuggestions()"
                                         @keydown.enter.prevent="addTag()"
                                         @keydown.backspace="handleBackspace()"
+                                        x-on:blur="addTag()"
                                         class="bg-transparent border-none focus:ring-0 text-white flex-1 min-w-[120px] outline-none h-8 px-1"
                                         placeholder="Type to find..."
                                     >
@@ -144,6 +145,7 @@
                                     <template x-for="sugg in suggestions" :key="sugg">
                                         <div
                                             x-on:click="selectSuggestion(sugg)"
+                                            x-on:mousedown.prevent
                                             class="px-3 py-2 hover:bg-blue-600 cursor-pointer text-white border-b border-gray-600 last:border-0"
                                             x-text="sugg"
                                         ></div>
