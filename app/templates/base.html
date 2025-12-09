@@ -22,23 +22,55 @@
         /**
          * Usage: route('api.items.show', { item_id: 123 })
          */
-        window.route = function(name, params = {}) {
-
-            if (!API_ROUTES[name]) {
-                console.error(`Route name "${name}" not found.`);
-                return '#';
-            }
+        get_route = function(name, params = {}, rawQuery = '') {
 
             let url = API_ROUTES[name];
 
-            // 2. Replace placeholders like {item_id} with actual values
-            for (const key in params) {
-                // simple replace for {key}
-                url = url.replace(`{${key}}`, params[key]);
+            if (!url) {
+                console.error(`Route name "${name}" not found in API_ROUTES.`);
+                return '#';
+            }
+
+            // Create a copy of params so we can modify it without side effects
+            let remainingParams = { ...params };
+
+            // Replace Path Parameters
+            // We look for patterns like {id} or {item_id} in the URL string
+            url = url.replace(/\{(\w+)\}/g, (match, key) => {
+                if (remainingParams.hasOwnProperty(key)) {
+                    const value = remainingParams[key];
+                    // Remove this key from the list so it doesn't get added to the query string later
+                    delete remainingParams[key];
+                    return value;
+                }
+                // If the path needs a param (e.g. {id}) but you didn't provide it,
+                // we keep the placeholder or you could throw an error here.
+                console.warn(`Route "${name}" expects parameter "{${key}}" but it was not provided.`);
+                return match;
+            });
+
+            // specific "object" parameters to query string
+            const paramString = new URLSearchParams(remainingParams).toString();
+
+            // Clean up the user's raw query string (remove leading '?' or '&' if present)
+            let extraString = rawQuery ? rawQuery.toString().replace(/^[?&]/, '') : '';
+
+            // Merge them
+            // We have two potential sources of query params: paramString and extraString
+            let fullQuery = [];
+            if (paramString) fullQuery.push(paramString);
+            if (extraString) fullQuery.push(extraString);
+
+            if (fullQuery.length > 0) {
+                // specific check: does the url already have a '?' (rare in FastAPI path definitions but possible)
+                const separator = url.includes('?') ? '&' : '?';
+                url += separator + fullQuery.join('&');
             }
 
             return url;
         };
+
+        window.comicServer = {...(window.comicServer || {}), route: get_route };
 
     </script>
 
@@ -75,7 +107,7 @@
 
                     <div class="hidden lg:flex items-center space-x-1">
                         <a href="{{ url('/user/dashboard') }}" class="px-3 py-2 rounded-md text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-800 transition-colors">Dashboard</a>
-                        <div class="relative group" x-data="{ open: false, libs: [] }" x-init="libs = await (await fetch(window.url('/api/libraries/'))).json()">
+                        <div class="relative group" x-data="{ open: false, libs: [] }" x-init="libs = await (await fetch(window.comicServer.route('list_libraries'))).json()">
 
                             <button class="px-3 py-2 rounded-md text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-800 transition-colors flex items-center gap-1">
                                 <span>Libraries</span>
@@ -85,7 +117,7 @@
                             <div class="absolute left-0 mt-0 w-48 bg-gray-900 border border-gray-700 rounded-lg shadow-xl py-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
 
                                 <template x-for="lib in libs" :key="lib.id">
-                                    <a :href="window.url(`/libraries/${lib.id}`)" class="block px-4 py-2 text-sm text-gray-300 hover:bg-blue-600 hover:text-white" x-text="lib.name"></a>
+                                    <a :href="window.comicServer.route('page_library_detail', { library_id: lib.id })" class="block px-4 py-2 text-sm text-gray-300 hover:bg-blue-600 hover:text-white" x-text="lib.name"></a>
                                 </template>
 
                                 <div x-show="libs.length > 0" class="border-t border-gray-700 my-1"></div>
@@ -123,7 +155,7 @@
                     <div class="flex items-center border-l border-gray-700 pl-3 ml-1">
                         <template x-if="localStorage.getItem('token')">
                             <button
-                                @click="localStorage.removeItem('token'); window.location.href = '/login'"
+                                x-on:click="localStorage.removeItem('token'); window.location.href = window.comicServer.route('page_login');"
                                 class="text-sm font-medium text-gray-400 hover:text-white transition-colors"
                             >
                                 Logout
@@ -131,7 +163,7 @@
                         </template>
 
                         <template x-if="!localStorage.getItem('token')">
-                            <a href="/login" class="text-sm font-bold text-blue-400 hover:text-blue-300 transition-colors">
+                            <a :href="window.comicServer.route('login')" class="text-sm font-bold text-blue-400 hover:text-blue-300 transition-colors">
                                 Login
                             </a>
                         </template>
