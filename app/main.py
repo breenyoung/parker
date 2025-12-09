@@ -42,6 +42,7 @@ from app.api import pull_lists
 from app.api import reports
 from app.api import migration
 from app.api import batch
+from app.api import home
 
 # Frontend Routes (HTML)
 from app.routers import pages, admin
@@ -219,6 +220,7 @@ app.include_router(pull_lists.router, prefix="/api/pull-lists", tags=["pull-list
 app.include_router(reports.router, prefix="/api/reports", tags=["reports"])
 app.include_router(migration.router, prefix="/api/migration", tags=["migration"])
 app.include_router(batch.router, prefix="/api/batch", tags=["batch"])
+app.include_router(home.router, prefix="/api/home", tags=["home"])
 
 # 2. Frontend Routers (HTML)
 # We don't use a prefix for 'pages' because they live at the root (/)
