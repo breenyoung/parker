@@ -363,7 +363,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // Export utilities
-window.comicServer = {
+window.comicServer = { ...(window.comicServer || {}),
     showToast,
     debounce,
     formatFileSize,
