@@ -229,7 +229,7 @@ app.include_router(jobs.router, prefix="/api/jobs", tags=["jobs", "admin"])
 
 # 2. Frontend Routers (HTML)
 # We don't use a prefix for 'pages' because they live at the root (/)
-app.include_router(pages.router)
+app.include_router(pages.router, tags=["pages"])
 
 # 3. Admin Routers (HTML)
 # We add the /admin prefix here so we don't have to type it in every route in admin.py
