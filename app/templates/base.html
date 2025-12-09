@@ -22,14 +22,22 @@
         /**
          * Usage: route('api.items.show', { item_id: 123 })
          */
-        get_route = function(name, params = {}, rawQuery = '') {
+        get_route = function(path, params = {}, rawQuery = '') {
 
-            let url = API_ROUTES[name];
+            // path can be "comics.detail" or "pages.home"
+            const parts = path.split('.');
+            let urlObj = API_ROUTES;
 
-            if (!url) {
-                console.error(`Route name "${name}" not found in API_ROUTES.`);
-                return '#';
+            for (const part of parts) {
+                if (urlObj && urlObj.hasOwnProperty(part)) {
+                    urlObj = urlObj[part];
+                } else {
+                    console.error(`Route "${path}" not found in API_ROUTES.`);
+                    return '#';
+                }
             }
+
+            let url = urlObj;
 
             // Create a copy of params so we can modify it without side effects
             let remainingParams = { ...params };
@@ -107,7 +115,7 @@
 
                     <div class="hidden lg:flex items-center space-x-1">
                         <a href="{{ url('/user/dashboard') }}" class="px-3 py-2 rounded-md text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-800 transition-colors">Dashboard</a>
-                        <div class="relative group" x-data="{ open: false, libs: [] }" x-init="libs = await (await fetch(window.comicServer.route('list_libraries'))).json()">
+                        <div class="relative group" x-data="{ open: false, libs: [] }" x-init="libs = await (await fetch(window.comicServer.route('libraries.list'))).json()">
 
                             <button class="px-3 py-2 rounded-md text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-800 transition-colors flex items-center gap-1">
                                 <span>Libraries</span>
@@ -117,7 +125,7 @@
                             <div class="absolute left-0 mt-0 w-48 bg-gray-900 border border-gray-700 rounded-lg shadow-xl py-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
 
                                 <template x-for="lib in libs" :key="lib.id">
-                                    <a :href="window.comicServer.route('page_library_detail', { library_id: lib.id })" class="block px-4 py-2 text-sm text-gray-300 hover:bg-blue-600 hover:text-white" x-text="lib.name"></a>
+                                    <a :href="window.comicServer.route('pages.library_detail', { library_id: lib.id })" class="block px-4 py-2 text-sm text-gray-300 hover:bg-blue-600 hover:text-white" x-text="lib.name"></a>
                                 </template>
 
                                 <div x-show="libs.length > 0" class="border-t border-gray-700 my-1"></div>
@@ -155,7 +163,7 @@
                     <div class="flex items-center border-l border-gray-700 pl-3 ml-1">
                         <template x-if="localStorage.getItem('token')">
                             <button
-                                x-on:click="localStorage.removeItem('token'); window.location.href = window.comicServer.route('page_login');"
+                                x-on:click="localStorage.removeItem('token'); window.location.href = window.comicServer.route('pages.login');"
                                 class="text-sm font-medium text-gray-400 hover:text-white transition-colors"
                             >
                                 Logout
