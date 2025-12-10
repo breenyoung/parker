@@ -235,21 +235,6 @@ def get_comic_page(
     if not webp and mime_type == "image/png": extension = "png"
     if not webp and mime_type == "image/gif": extension = "gif"
 
-    # Detect image type from bytes
-    # If filtered, it's always JPEG. If raw, detect type.
-    # if sharpen or grayscale:
-    #     media_type = "image/jpeg"
-    # elif image_bytes.startswith(b'\xff\xd8\xff'):
-    #     media_type = "image/jpeg"
-    # elif image_bytes.startswith(b'\x89PNG'):
-    #     media_type = "image/png"
-    # elif image_bytes.startswith(b'GIF'):
-    #     media_type = "image/gif"
-    # elif image_bytes.startswith(b'RIFF') and b'WEBP' in image_bytes[:20]:
-    #     media_type = "image/webp"
-    #else:
-    #    media_type = "image/jpeg"  # Default
-
     # CACHE LOGIC
     headers = {
         "Content-Disposition": f'inline; filename="page_{page_index}.{extension}"'
