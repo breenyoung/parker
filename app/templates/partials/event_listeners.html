@@ -26,7 +26,7 @@
             // This ensures we don't accidentally update Comic #1 when we selected Series #1
             const affectedIds = batchPayload.comic_ids;
 
-            const res = await fetch(window.url('/api/batch/read-status'), {
+            const res = await fetch(window.comicServer.route('batch.mark_read'), {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(payload)

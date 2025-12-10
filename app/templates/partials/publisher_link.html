@@ -1,12 +1,12 @@
 <a
     x-show="{{ publisher_ref }}"
-    :href="`/search?field=publisher&value=${encodeURIComponent({{ publisher_ref }})}&operator=equal`"
+    :href="window.comicServer.route('pages.search', {}, `field=publisher&value=${encodeURIComponent({{ publisher_ref }})}&operator=equal`)"
     class="inline-flex items-center gap-2 hover:text-blue-400 transition-colors group"
     title="Browse Publisher"
 >
     <template x-if="{{ publisher_ref }}">
     <img
-        :src="`/static/img/publishers/${ {{ publisher_ref }} }.png`"
+        :src="window.url(`/static/img/publishers/${ {{ publisher_ref }} }.png`)"
         @error="$el.style.display = 'none'"
         @load="$el.style.display = ''"
         class="h-6 w-auto max-w-[100px] object-contain bg-gray-200 rounded-sm px-1"

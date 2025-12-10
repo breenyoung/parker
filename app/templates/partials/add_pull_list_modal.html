@@ -112,7 +112,7 @@ function addPullListModal() {
         async fetchLists() {
             this.loading = true;
             try {
-                const res = await fetch(window.url('/api/pull-lists/'));
+                const res = await fetch(window.comicServer.route('pull_lists.list'));
                 if (res.ok) this.myLists = await res.json();
             } catch (e) {
                 console.error(e);
@@ -126,7 +126,7 @@ function addPullListModal() {
             // BATCH MODE
             if (this.isBatch) {
                 try {
-                    const res = await fetch(window.url(`/api/pull-lists/${listId}/items/batch`), {
+                    const res = await fetch(window.comicServer.route('pull_lists.batch_add_items', { list_id: listId }), {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ comic_ids: this.batchIds })
@@ -146,14 +146,14 @@ function addPullListModal() {
                 return;
             }
 
-            // INGLE MODE (Legacy Logic)
+            // SINGLE MODE (Legacy Logic)
             if (this.targetType !== 'comic') {
                 alert("Bulk add for Volumes/Series requires a backend update! Coming soon.");
                 return;
             }
 
             try {
-                const res = await fetch(window.url(`/api/pull-lists/${listId}/items`), {
+                const res = await fetch(window.comicServer.route('pull_lists.add_item', { list_id: listId }), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ comic_id: this.targetId })
@@ -174,7 +174,7 @@ function addPullListModal() {
             if (!this.newListName) return;
 
             try {
-                const createRes = await fetch(window.url('/api/pull-lists/'), {
+                const createRes = await fetch(window.comicServer.route('pull_lists.create'), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ name: this.newListName })
