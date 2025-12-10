@@ -53,7 +53,10 @@ async def list_libraries(db: SessionDep, current_user: CurrentUser):
             "id": lib.id,
             "name": lib.name,
             "path": lib.path,
+            "scan_on_startup": lib.scan_on_startup,
             "watch_mode": lib.watch_mode,
+            "last_scanned": lib.last_scanned,
+            "is_scanning": lib.is_scanning,
             "created_at": lib.created_at,
             "stats": {
                 "series": series_count,
