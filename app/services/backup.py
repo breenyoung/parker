@@ -12,9 +12,9 @@ from app.core.settings_loader import get_system_setting
 logger = logging.getLogger(__name__)
 
 class BackupService:
-    def create_backup(self) -> dict:
 
-        logger = logging.getLogger(__name__)
+    @staticmethod
+    def create_backup() -> dict:
 
         """
         Perform a hot backup of the SQLite database and compress it.

@@ -32,8 +32,7 @@ async def run_backup_task(
     """
     Trigger a database backup immediately.
     """
-    service = BackupService()
-    result = service.create_backup()
+    result = BackupService.create_backup()
 
     return {
         "message": "Backup created successfully",

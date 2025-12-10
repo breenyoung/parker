@@ -122,8 +122,7 @@ class SchedulerService:
     def run_backup_job():
         logger.info("Running Scheduled Backup...")
         try:
-            service = BackupService()
-            result = service.create_backup()
+            result = BackupService.create_backup()
             logger.info(f"Backup Complete: {result['filename']}")
         except Exception as e:
             logger.error(f"Backup Failed: {e}")
