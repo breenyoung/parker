@@ -28,7 +28,7 @@
         position: fixed; inset: 0; z-index: 200;
         background: rgba(0,0,0,0.95);
         overflow: auto; /* Allow native scrolling */
-        display: flex; justify-content: center; align-items: flex-start;
+        display: flex;
         cursor: grab;
         user-select: none; /* Prevents text selection while dragging */
     }
@@ -47,6 +47,7 @@
         -webkit-user-drag: none;
         user-select: none;
         pointer-events: auto; /* Ensure clicks register */
+        flex-shrink: 0; /* Prevent image from trying to fit */
     }
 </style>
 {% endblock %}
@@ -169,6 +170,22 @@ function coverBrowser() {
                 this.items = data.items;
             }
             this.loading = false;
+
+            // Watch for zoom mode to center the scroll
+            this.$watch('zoomMode', value => {
+                if (value) {
+                    this.$nextTick(() => {
+                        const el = this.$refs.zoomContainer;
+                        if (el) {
+                            // Calculate center position
+                            el.scrollLeft = (el.scrollWidth - el.clientWidth) / 2;
+                            el.scrollTop = (el.scrollHeight - el.clientHeight) / 2;
+                        }
+                    });
+                }
+            });
+
+
         },
 
         get currentImages() {
