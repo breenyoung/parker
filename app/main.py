@@ -242,7 +242,7 @@ app.include_router(opds.router)
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
-    return {"status": "healthy", "service": "comic-server"}
+    return {"status": "healthy", "service": "parker"}
 
 
 

@@ -1,9 +1,9 @@
 version: '3.8'
 
 services:
-  comic-server:
+  parker:
     build: .
-    container_name: comic-server
+    container_name: parker
     user: "${UID}:${GID}"
     ports:
       - "8000:8000"
