@@ -3,32 +3,117 @@
  * Automatically injects JWT token and handles 401 Redirects.
  */
 (function() {
+
     const originalFetch = window.fetch;
+    let isRefreshing = false;
+    let failedQueue = [];
+
+    const processQueue = (error, token = null) => {
+        failedQueue.forEach(prom => {
+            if (error) {
+                prom.reject(error);
+            } else {
+                prom.resolve(token);
+            }
+        });
+        failedQueue = [];
+    };
 
     window.fetch = async function(url, options = {}) {
+
         options.headers = options.headers || {};
 
-        // Inject Token
-        const token = localStorage.getItem('token');
-        if (token) {
+        // Helper to inject token
+        const injectToken = (token) => {
             if (options.headers instanceof Headers) {
-                options.headers.append('Authorization', `Bearer ${token}`);
+                options.headers.set('Authorization', `Bearer ${token}`);
             } else {
                 options.headers['Authorization'] = `Bearer ${token}`;
             }
-        }
+        };
+
+        // Initial Token Attempt
+        const token = localStorage.getItem('token');
+        if (token) { injectToken(token); }
 
         try {
             const response = await originalFetch(url, options);
 
             // Handle Unauthorized (401)
             if (response.status === 401) {
-                console.warn('Session expired. Redirecting to login.');
-                localStorage.removeItem('token');
 
-                // Avoid infinite reload loops if already on login
-                if (!window.location.pathname.includes('/login')) {
+                // If we are already refreshing, queue this request
+                if (isRefreshing) {
+                    return new Promise((resolve, reject) => {
+                        failedQueue.push({ resolve, reject });
+                    }).then(newToken => {
+                        injectToken(newToken);
+                        return originalFetch(url, options);
+                    }).catch(err => {
+                        return response; // Return original 401 if refresh fails
+                    });
+                }
+
+                // Start Refresh Logic
+                const refreshToken = localStorage.getItem('refresh_token');
+
+                // If no refresh token, or if we are calling the login/refresh endpoints themselves, abort
+                if (!refreshToken || url.includes('/token') || url.includes('/refresh')) {
+
+                    // Actual logout logic
+                    console.warn('Session expired. Redirecting to login.');
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('refresh_token');
+
+                    // Avoid infinite reload loops if already on login
+                    if (!window.location.pathname.includes('/login')) {
+                        window.location.href = '/login';
+                    }
+                    return response;
+                }
+
+                isRefreshing = true;
+
+                try {
+                    // Call Refresh Endpoint
+                    const refreshRes = await originalFetch('/api/auth/refresh', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ refresh_token: refreshToken })
+                    });
+
+                    if (refreshRes.ok) {
+
+                        const data = await refreshRes.json();
+
+                        // Save new tokens
+                        localStorage.setItem('token', data.access_token);
+                        localStorage.setItem('refresh_token', data.refresh_token); // Rotate it
+
+                        // Sync the cookie (for HTML navigation)
+                        // We set it to the same expiry logic as the login page
+                        document.cookie = `access_token=${data.access_token}; path=/; max-age=${data.lifetime_in_seconds}; SameSite=Lax`;
+
+                        // Process queued requests
+                        processQueue(null, data.access_token);
+
+                        // Retry THIS request
+                        injectToken(data.access_token);
+                        return originalFetch(url, options);
+
+                    } else {
+                        throw new Error('Refresh failed');
+                    }
+                } catch (refreshErr) {
+                    // Refresh failed completely - Force Logout
+                    processQueue(refreshErr, null);
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('refresh_token');
                     window.location.href = '/login';
+
+                    return response;
+                } finally {
+                    isRefreshing = false;
                 }
             }
 

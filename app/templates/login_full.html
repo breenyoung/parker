@@ -226,6 +226,9 @@ function loginCycler() {
                 // Store Token for API calls (Alpine/JS)
                 localStorage.setItem('token', data.access_token);
 
+                // Store Refresh Token (Long-lived)
+                localStorage.setItem('refresh_token', data.refresh_token);
+
                 // Store Token for Server-Side Rendering (HTML Routes)
                 document.cookie = `access_token=${data.access_token}; path=/; max-age=${data.lifetime_in_seconds}; SameSite=Lax`;
 
