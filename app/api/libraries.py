@@ -247,7 +247,3 @@ async def scan_library(
     # Returns: {"status": "queued", "job_id": 123, "message": "..."}
     return result
 
-@router.get("/status/scanner", name="scan_status")
-async def get_scanner_status():
-    """Check if a scan is currently running"""
-    return scan_manager.get_status()
