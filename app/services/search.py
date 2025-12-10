@@ -87,10 +87,10 @@ class SearchService:
         # --- 0. FTS Routing (High Priority) ---
         # Intercept "Any" and "Summary" first
         if field == 'any':
-            return self._build_fts_condition(value)
+            return self._build_fts_condition(value, 'contains')
         # We route 'summary' here to use the fast index
-        elif field == 'summary' and operator in ['contains', 'equal']:
-            return self._build_fts_condition(value)
+        elif field == 'summary':
+            return self._build_fts_condition(value, operator)
 
         # 1. Simple Fields (Direct columns on Comic or Series)
         elif field == 'series':
@@ -335,7 +335,7 @@ class SearchService:
 
         return None
 
-    def _build_fts_condition(self, value):
+    def _build_fts_condition(self, value, operator='contains'):
         """
         Builds a high-performance Full Text Search condition.
         Returns: Comic.id IN (SELECT rowid FROM comics_fts ...)
@@ -343,11 +343,27 @@ class SearchService:
         if not value:
             return None
 
-        # 1. Sanitize & Syntax
-        # Wrap in quotes to handle spaces safely (e.g. "Spider Man")
-        # Add * for prefix matching (e.g. "Amaz*" finds "Amazing")
-        term = value if isinstance(value, str) else str(value)
-        fts_query = f'"{term}" *'
+        # 1. Prepare Terms based on Operator
+        fts_query = ""
+        if operator == 'must_contain' and isinstance(value, list):
+            # AND Logic: "term1" AND "term2"
+            # matches rows containing BOTH
+            sanitized = [f'"{v}"' for v in value]
+            fts_query = " AND ".join(sanitized)
+        elif isinstance(value, list):
+            # Fallback for lists (usually OR logic)
+            # "term1" OR "term2"
+            sanitized = [f'"{v}"' for v in value]
+            fts_query = " OR ".join(sanitized)
+        else:
+            # Single Value (Standard)
+            term = str(value)
+            # Wrap in quotes to handle spaces safely (e.g. "Spider Man")
+            # Add wildcard only for standard 'contains/equal' to be helpful
+            # * for prefix matching (e.g. "Amaz*" finds "Amazing")
+            # For specific exclusions, maybe exact match is better, but prefix is usually expected
+            fts_query = f'"{term}" *'
+
 
         # 2. The Subquery
         # "Find the IDs of all comics where our indexed text matches the term"
@@ -364,8 +380,19 @@ class SearchService:
             # Fallback if table doesn't exist or query fails
             return None
 
+        # 4. Handle Negative Operators (Invert the ID list)
+        if operator in ['does_not_contain', 'not_equal']:
+            if not matched_ids:
+                # If "not containing X", and we found ZERO comics with X,
+                # then ALL comics are valid. Return None (no filter).
+                return None
+
+            # Return: ID NOT IN (matches)
+            return ~Comic.id.in_(matched_ids)
+
+        # 5. Handle Positive Operators
         if not matched_ids:
-            # Return a condition that matches nothing if FTS found nothing
+            # Found nothing, so return a False condition
             return Comic.id == -1
 
         # 4. Return Condition
