@@ -236,10 +236,12 @@ async def get_volume_issues(
         volume_id: int,
         params: Annotated[PaginationParams, Depends()],
         db: SessionDep,
-        type: Annotated[str, Query(pattern="^(plain|annual|special|all)$")] = "plain"
+        type: Annotated[str, Query(pattern="^(plain|annual|special|all)$")] = "plain",
+        read_filter: Annotated[str, Query(pattern="^(all|read|unread)$")] = "all",
+        sort_order: Annotated[str, Query(pattern="^(asc|desc)$")] = "asc"
 ):
     """
-    Get paginated issues for a specific volume, filtered by type.
+    Get paginated issues for a specific volume, filtered by type and read status with sort option
     """
 
     # Verify Volume Access First
@@ -262,7 +264,7 @@ async def get_volume_issues(
 
     is_plain, is_annual, is_special = get_format_filters()
 
-    # Apply Filters
+    # Type Filters
     if type == "plain":
         query = query.filter(is_plain)
     elif type == "annual":
@@ -270,15 +272,29 @@ async def get_volume_issues(
     elif type == "special":
         query = query.filter(is_special)
 
-    total = query.count()
+    # Read Status Filter
+    if read_filter == "read":
+        query = query.filter(ReadingProgress.completed == True)
+    elif read_filter == "unread":
+        query = query.filter(
+            (ReadingProgress.completed == None) |
+            (ReadingProgress.completed == False)
+        )
 
-    # Sort by Numeric Value first, then String Value for variants (10a, 10b)
-    # Cast number to Float for correct numeric sorting
-    # Volume number is already int, so it sorts fine.
-    comics = query.order_by(func.cast(Comic.number, Float), Comic.number) \
-        .offset(params.skip) \
-        .limit(params.size) \
-        .all()
+    # Smart Sorting Strategy
+    # We define the 2-stage sort keys:
+    # 1. Numeric Value (9 before 10)
+    # 2. String Value (10a before 10b)
+    sort_keys = [func.cast(Comic.number, Float), Comic.number]
+
+    if sort_order == "desc":
+        query = query.order_by(*[k.desc() for k in sort_keys])
+    else:
+        query = query.order_by(*[k.asc() for k in sort_keys])
+
+    # Pagination & Execute
+    total = query.count()
+    comics = query.offset(params.skip).limit(params.size).all()
 
     # Map results
     # Unpack the tuple (Comic, completed)

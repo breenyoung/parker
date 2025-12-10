@@ -275,10 +275,12 @@ async def get_series_issues(
         series_id: int,
         params: Annotated[PaginationParams, Depends()],
         db: SessionDep,
-        type: Annotated[str, Query(pattern="^(plain|annual|special|all)$")] = "plain"
+        type: Annotated[str, Query(pattern="^(plain|annual|special|all)$")] = "plain",
+        read_filter: Annotated[str, Query(pattern="^(all|read|unread)$")] = "all",
+        sort_order: Annotated[str, Query(pattern="^(asc|desc)$")] = "asc"
 ):
     """
-    Get paginated issues for a series, filtered by type.
+    Get paginated issues for a series, filtered by type, read status with sort option
     """
     # Select Comic AND the completed status
     query = db.query(Comic, ReadingProgress.completed).outerjoin(
@@ -287,7 +289,7 @@ async def get_series_issues(
     ).join(Volume).join(Series).filter(Series.id == series_id)
 
 
-    # Get filters
+    # Format filters
     is_plain, is_annual, is_special = get_format_filters()
 
     if type == "plain":
@@ -297,15 +299,45 @@ async def get_series_issues(
     elif type == "special":
         query = query.filter(is_special)
 
+    # Read Status Filter
+    if read_filter == "read":
+        query = query.filter(ReadingProgress.completed == True)
+    elif read_filter == "unread":
+        # Unread = No record OR record exists but completed is False
+        query = query.filter(
+            (ReadingProgress.completed == None) |
+            (ReadingProgress.completed == False)
+        )
+
+    # Smart Sorting Strategy
+    # We define the 3-stage sort keys:
+    # 1. Volume (Major)
+    # 2. Numeric Value (9 before 10)
+    # 3. String Value (10a before 10b)
+    sort_keys = [
+        Volume.volume_number,
+        func.cast(Comic.number, Float),
+        Comic.number
+    ]
+
+    if sort_order == "desc":
+        # Reverse ALL keys to ensure "Vol 2 #10" comes before "Vol 1 #1"
+        query = query.order_by(*[k.desc() for k in sort_keys])
+    else:
+        # Default Ascending
+        query = query.order_by(*[k.asc() for k in sort_keys])
+
+    # Pagination & Execute
     total = query.count()
 
+    comics = query.offset(params.skip).limit(params.size).all()
     # Sort by Numeric Value first, then String Value for variants (10a, 10b)
     # Cast number to Float for correct numeric sorting (1, 2, 10 instead of 1, 10, 2)
     # Volume number is already int, so it sorts fine.
-    comics = query.order_by(Volume.volume_number, func.cast(Comic.number, Float), Comic.number) \
-        .offset(params.skip) \
-        .limit(params.size) \
-        .all()
+    #comics = query.order_by(Volume.volume_number, func.cast(Comic.number, Float), Comic.number) \
+    #    .offset(params.skip) \
+    #    .limit(params.size) \
+    #    .all()
 
     # Map results
     # We unpack the tuple (Comic, completed)

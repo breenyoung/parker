@@ -9,7 +9,7 @@
 
 <div class="relative z-10">
 
-    <div class="space-y-6" x-data="volumeDetail()">
+    <div class="space-y-6" x-data="volumeDetail()" x-on:set-read-filter="handleReadFilter($event.detail)" x-on:toggle-sort="handleToggleSort()">
 
         <div class="flex flex-wrap items-center gap-2 text-gray-400 mb-6 text-sm" x-show="!error" x-cloak>
             <a :href="window.comicServer.route('pages.library_detail', { library_id: volume?.library_id })" class="hover:text-white" x-text="volume?.library_name"></a>
@@ -222,6 +222,9 @@
                 <div class="p-6">
 
                     <div x-show="['issues', 'annuals', 'specials'].includes(activeTab)">
+
+                        {% include "partials/issues_toolbar.html" %}
+
                         <div x-show="gridLoading" class="py-12 text-center">
                             <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
                             <p class="text-gray-400">Loading...</p>
@@ -363,6 +366,10 @@ function volumeDetail() {
         pageSize: 48,
         totalItems: 0,
         currentType: 'plain',
+
+        readFilter: 'all', // 'all', 'read', 'unread'
+        sortOrder: 'asc',  // 'asc', 'desc'
+
         error: null,
 
         async init() {
@@ -432,17 +439,30 @@ function volumeDetail() {
         async fetchIssues() {
             this.gridLoading = true;
             try {
-                const url = window.comicServer.route('volumes.issues', { volume_id: this.volumeId }, `type=${this.currentType}&page=${this.currentPage}&size=${this.pageSize}`);
+                const url = window.comicServer.route('volumes.issues', { volume_id: this.volumeId }, `type=${this.currentType}&page=${this.currentPage}&size=${this.pageSize}&read_filter=${this.readFilter}&sort_order=${this.sortOrder}`);
                 const res = await fetch(url);
                 const data = await res.json();
                 this.currentItems = data.items;
                 this.totalItems = data.total;
-                window.scrollTo({ top: 0, behavior: 'smooth' });
+                //window.scrollTo({ top: 0, behavior: 'smooth' });
             } catch (e) {
                 console.error("Failed to load issues", e);
             } finally {
                 this.gridLoading = false;
             }
+        },
+
+        // Event Listener Handlers (Called via x-on in HTML)
+        handleReadFilter(val) {
+            this.readFilter = val;
+            this.currentPage = 1;
+            this.fetchIssues();
+        },
+
+        handleToggleSort() {
+            this.sortOrder = this.sortOrder === 'asc' ? 'desc' : 'asc';
+            this.currentPage = 1;
+            this.fetchIssues();
         },
 
         changePage(newPage) {

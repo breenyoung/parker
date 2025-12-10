@@ -8,7 +8,7 @@
 {{ page_context(cover.id, cover.color_palette) }}
 
 <div class="relative z-10">
-    <div class="space-y-6" x-data="seriesDetail()">
+    <div class="space-y-6" x-data="seriesDetail()" x-on:set-read-filter="handleReadFilter($event.detail)" x-on:toggle-sort="handleToggleSort()">
 
         <div class="flex items-center space-x-2 text-gray-400 mb-6 text-sm" x-show="!error && !notFound" x-cloak>
             <a :href="window.comicServer.route('pages.library_detail', { library_id: series?.library_id })" class="hover:text-white" x-text="series?.library_name"></a>
@@ -242,6 +242,8 @@
 
                     <div x-show="['issues', 'annuals', 'specials'].includes(activeTab)">
 
+                        {% include "partials/issues_toolbar.html" %}
+
                         <div x-show="gridLoading" class="py-20 text-center">
                             <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
                             <p class="text-gray-400">Loading comics...</p>
@@ -468,6 +470,9 @@ function seriesDetail() {
         totalItems: 0,
         currentType: 'plain', // plain, annual, special, all
 
+        readFilter: 'all', // 'all', 'read', 'unread'
+        sortOrder: 'asc',  // 'asc', 'desc'
+
         init() {
             this.loadSeriesSummary();
         },
@@ -550,7 +555,7 @@ function seriesDetail() {
             this.gridLoading = true;
             try {
                 // Construct URL with pagination and filters
-                const url = window.comicServer.route('series.issues', { series_id: this.seriesId }, `type=${this.currentType}&page=${this.currentPage}&size=${this.pageSize}`);
+                const url = window.comicServer.route('series.issues', { series_id: this.seriesId }, `type=${this.currentType}&page=${this.currentPage}&size=${this.pageSize}&read_filter=${this.readFilter}&sort_order=${this.sortOrder}`);
 
                 const res = await fetch(url);
                 const data = await res.json();
@@ -559,12 +564,25 @@ function seriesDetail() {
                 this.totalItems = data.total;
 
                 // Scroll to top of grid slightly
-                window.scrollTo({ top: 300, behavior: 'smooth' });
+                //window.scrollTo({ top: 300, behavior: 'smooth' });
             } catch (e) {
                 console.error("Failed to load comics", e);
             } finally {
                 this.gridLoading = false;
             }
+        },
+
+        // Event Listener Handlers (Called via x-on in HTML)
+        handleReadFilter(val) {
+            this.readFilter = val;
+            this.currentPage = 1;
+            this.fetchIssues();
+        },
+
+        handleToggleSort() {
+            this.sortOrder = this.sortOrder === 'asc' ? 'desc' : 'asc';
+            this.currentPage = 1;
+            this.fetchIssues();
         },
 
         changePage(newPage) {
@@ -608,6 +626,12 @@ function seriesDetail() {
             } catch (e) {
                 console.error(e);
             }
+        },
+
+        toggleSort() {
+            this.sortOrder = this.sortOrder === 'asc' ? 'desc' : 'asc';
+            this.currentPage = 1; // Reset to page 1 on sort change
+            this.fetchIssues();
         },
 
     }
