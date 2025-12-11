@@ -36,7 +36,11 @@ class MaintenanceService:
         vol_query = self.db.query(Volume).filter(~Volume.comics.any())
         if library_id:
             # Join Series to check library_id
-            vol_query = vol_query.join(Series).filter(Series.library_id == library_id)
+            # We cannot use .join() with .delete(). We must use a subquery.
+            # Subquery: Find all Series IDs belonging to this library
+            series_subquery = self.db.query(Series.id).filter(Series.library_id == library_id)
+            vol_query = vol_query.filter(Volume.series_id.in_(series_subquery))
+
         deleted = vol_query.delete(synchronize_session=False)
 
         stats["volumes"] = deleted
