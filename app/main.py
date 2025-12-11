@@ -1,3 +1,4 @@
+import multiprocessing
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -49,7 +50,13 @@ logger = log_config.setup_logging("INFO")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
+
+    if multiprocessing.current_process().name != "MainProcess":
+        # Skip startup for worker processes
+        yield
+        return
+
+    # --- MAIN SERVER STARTUP ---
     print(f"Starting {settings.app_name}")
 
     # Silence the Uvicorn access logger (GET /api/...)
