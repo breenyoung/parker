@@ -294,10 +294,14 @@ class ScanManager:
             db.commit()
 
         except Exception as e:
-            print(f"Thumbnail Job {job_id} Failed: {e}")
             self.logger.error(f"Thumbnail Job {job_id} Failed: {e}")
             traceback.print_exc()
             db.rollback()
+
+            # Re-fetch and Reset Library Flag on Failure ---
+            library = db.query(Library).get(library_id)
+            if library:
+                library.is_scanning = False
 
             job = db.query(ScanJob).get(job_id)
             if job:
