@@ -69,6 +69,22 @@ class SettingsService:
             ]
         },
         {
+            "key": "system.parallel_image_processing",
+            "value": "false",
+            "category": "system",
+            "data_type": "bool",
+            "label": "Enable Parallel Image Processing",
+            "description": "Use all CPU cores to speed up thumbnail generation. May increase system load."
+        },
+        {
+            "key": "system.parallel_image_workers",
+            "value": "0",
+            "category": "system",
+            "data_type": "int",
+            "label": "Parallel Image Worker Count",
+            "description": "Number of worker processes for thumbnail generation. 0 = auto (use all CPU cores). Values above your CPU count will be clamped."
+        },
+        {
             "key": "system.task.scan.interval",
             "value": "daily",
             "category": "system",

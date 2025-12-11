@@ -6,6 +6,7 @@ import logging
 from datetime import datetime, timezone
 from sqlalchemy import asc
 
+from app.core.settings_loader import get_system_setting, get_cached_setting
 from app.database import SessionLocal
 # Import from the package 'app.models' to trigger __init__.py
 from app.models import ScanJob, Library
@@ -272,7 +273,13 @@ class ScanManager:
 
             # --- RUN THUMBNAILER ---
             service = ThumbnailService(db, library_id)
-            stats = service.process_missing_thumbnails(force=force)
+            use_parallel = get_cached_setting('system.parallel_image_processing', False)
+            if use_parallel:
+                self.logger.info(f"Using parallel mode for THUMBNAIL job {job_id}")
+                stats = service.process_missing_thumbnails_parallel(force=force)
+                pass
+            else:
+                stats = service.process_missing_thumbnails(force=force)
             # -----------------------
 
             job.status = JobStatus.COMPLETED
