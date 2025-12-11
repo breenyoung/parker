@@ -1,3 +1,4 @@
+import os
 import multiprocessing
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
@@ -51,10 +52,16 @@ logger = log_config.setup_logging("INFO")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
 
-    if multiprocessing.current_process().name != "MainProcess":
-        # Skip startup for worker processes
+    # Only run startup logic when running under Uvicorn
+    is_uvicorn = os.getenv("SERVER_SOFTWARE") == "uvicorn"
+    is_main = multiprocessing.current_process().name == "MainProcess"
+
+    if not (is_uvicorn and is_main):
+        # Skip startup in workers
         yield
         return
+
+
 
     # --- MAIN SERVER STARTUP ---
     print(f"Starting {settings.app_name}")
