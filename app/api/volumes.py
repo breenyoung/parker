@@ -49,7 +49,11 @@ async def get_volume_detail(volume: VolumeDep, db: SessionDep, current_user: Cur
         func.max(Comic.year).label('end_year'),
         func.max(Comic.publisher).label('publisher'),
         func.max(Comic.imprint).label('imprint'),
-        func.max(Comic.count).label('max_count'),  # Get the highest 'Count' value found
+
+        # Only look at 'Count' if the issue is a standard (Plain) issue.
+        # This ignores "1 of 1" tags on Specials/One-shots.
+        func.max(case((is_plain, Comic.count))).label('max_count'),
+
         func.sum(Comic.page_count).label('total_pages'),
         func.sum(Comic.file_size).label('total_size')
     ).filter(Comic.volume_id == volume.id).first()
