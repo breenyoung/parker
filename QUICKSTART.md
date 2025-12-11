@@ -13,6 +13,7 @@ Parker is a self‑hosted comic book server for CBZ/CBR archives. It’s designe
    
 2. ```docker-compose up -d --build``
 3. Access Parker at http://localhost:8000. Default user: admin/admin
+4. Admin tools found at http://localhost:8000/admin
 
 ## ✨ What You Get
 - Browse comics by Library → Series → Volume → Issue
