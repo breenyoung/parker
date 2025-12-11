@@ -7,7 +7,7 @@
     
     <div class="flex justify-between items-center mb-8">
         <h1 class="text-3xl font-bold text-white">Kavita Migration Tool ➡️</h1>
-        <a href="/admin" class="text-gray-400 hover:text-white transition-colors">← Back to Admin</a>
+        <a :href="window.parker.route('admin.dashboard')" class="text-gray-400 hover:text-white transition-colors">← Back to Admin</a>
     </div>
 
     <div class="bg-gray-800 rounded-lg p-8 border border-gray-700 shadow-xl space-y-6">
@@ -99,7 +99,7 @@ function migrationTool() {
             formData.append('user_strategy', this.userStrategy);
 
             try {
-                const res = await fetch(window.parker.url('/api/migration/run'), {
+                const res = await fetch(window.parker.route('migration.kavita_migration'), {
                     method: 'POST',
                     body: formData,
                 });

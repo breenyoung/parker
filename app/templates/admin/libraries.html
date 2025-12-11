@@ -7,7 +7,7 @@
     
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-3xl font-bold">Library Management</h1>
-        <button @click="openAddModal()" class="btn-primary">
+        <button x-on:click="openAddModal()" class="btn-primary">
             + Add Library
         </button>
     </div>
@@ -26,7 +26,7 @@
                 <template x-for="lib in libraries" :key="lib.id">
                     <tr class="hover:bg-gray-750">
                         <td class="px-6 py-4 font-bold text-white">
-                            <a :href="`/library/${lib.id}`" class="hover:text-blue-400 transition-colors" x-text="lib.name"></a>
+                            <a :href="window.parker.route('pages.library_detail', { library_id: lib.id })" class="hover:text-blue-400 transition-colors" x-text="lib.name"></a>
                         </td>
                         <td class="px-6 py-4 text-sm text-gray-400 font-mono" x-text="lib.path"></td>
                         <td class="px-6 py-4 text-sm text-gray-400">
@@ -37,7 +37,7 @@
                         </td>
                         <td class="px-6 py-4 text-right flex justify-end items-center gap-2">
                             <button
-                                @click="triggerScan(lib, false)"
+                                x-on:click="triggerScan(lib, false)"
                                 class="bg-gray-700 hover:bg-green-600 text-white text-xs px-3 py-1.5 rounded transition-colors flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
                                 :disabled="lib.is_scanning"
                             >
@@ -45,7 +45,7 @@
                             </button>
 
                             <button
-                                @click="triggerScan(lib, true)"
+                                x-on:click="triggerScan(lib, true)"
                                 class="text-gray-500 hover:text-green-400 text-xs px-2 disabled:opacity-30 disabled:cursor-not-allowed"
                                 title="Force Rescan (Ignore timestamps)"
                                 :disabled="lib.is_scanning"
@@ -55,8 +55,8 @@
 
                             <div class="h-4 w-px bg-gray-700 mx-1"></div>
 
-                            <button @click="openEditModal(lib)" class="text-blue-400 hover:text-white text-sm font-medium px-2">Edit</button>
-                            <button @click="deleteLibrary(lib)" class="text-red-400 hover:text-white text-sm font-medium px-2">Delete</button>
+                            <button x-on:click="openEditModal(lib)" class="text-blue-400 hover:text-white text-sm font-medium px-2">Edit</button>
+                            <button x-on:click="deleteLibrary(lib)" class="text-red-400 hover:text-white text-sm font-medium px-2">Delete</button>
                         </td>
                     </tr>
                 </template>
@@ -70,7 +70,7 @@
     </div>
 
     <div x-show="showModal" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50" style="display: none;" x-transition.opacity>
-        <div class="bg-gray-800 p-6 rounded-lg w-full max-w-md border border-gray-700 shadow-2xl" @click.away="showModal = false">
+        <div class="bg-gray-800 p-6 rounded-lg w-full max-w-md border border-gray-700 shadow-2xl" x-on:click.away="showModal = false">
             <h2 class="text-xl font-bold mb-4" x-text="isEditing ? 'Edit Library' : 'Add New Library'"></h2>
 
             <div class="space-y-4">
@@ -98,8 +98,8 @@
                 </div>
 
                 <div class="flex justify-end gap-2 mt-6">
-                    <button @click="showModal = false" class="text-gray-400 hover:text-white px-4 py-2 transition-colors">Cancel</button>
-                    <button @click="saveLibrary()" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded transition-colors shadow-lg">
+                    <button x-on:click="showModal = false" class="text-gray-400 hover:text-white px-4 py-2 transition-colors">Cancel</button>
+                    <button x-on:click="saveLibrary()" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded transition-colors shadow-lg">
                         <span x-text="isEditing ? 'Save Changes' : 'Create Library'"></span>
                     </button>
                 </div>
@@ -133,7 +133,7 @@ function libraryManager() {
 
         async loadLibraries() {
             try {
-                const res = await fetch(window.parker.url('/api/libraries/'));
+                const res = await fetch(window.parker.route('libraries.list'));
                 if (res.ok) this.libraries = await res.json();
             } catch(e) { console.error(e); }
         },
@@ -152,7 +152,8 @@ function libraryManager() {
 
         async saveLibrary() {
             const method = this.isEditing ? 'PATCH' : 'POST';
-            const url = this.isEditing ? `/api/libraries/${this.form.id}` : '/api/libraries/';
+            const url = this.isEditing ? window.parker.route('libraries.update', { library_id: this.form.id })
+                : window.parker.route('libraries.create');
 
             const payload = {
                 name: this.form.name,
@@ -161,7 +162,7 @@ function libraryManager() {
             };
 
             try {
-                const res = await fetch(window.parker.url(url), {
+                const res = await fetch(url, {
                     method: method,
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
@@ -185,7 +186,7 @@ function libraryManager() {
         async deleteLibrary(lib) {
             if (!confirm(`Delete library "${lib.name}"? This removes all comics from the database (files remain intact).`)) return;
 
-            const res = await fetch(window.parker.url(`/api/libraries/${lib.id}`), { method: 'DELETE' });
+            const res = await fetch(window.parker.route('libraries.delete', {library_id: lib.id}), { method: 'DELETE' });
             if (res.ok) {
                 this.loadLibraries();
             } else {
@@ -202,7 +203,7 @@ function libraryManager() {
 
             lib.is_scanning = true; // Optimistic update
 
-            const res = await fetch(window.parker.url(`/api/libraries/${lib.id}/scan?force=${force}`), { method: 'POST' });
+            const res = await fetch(window.parker.route('libraries.scan', { library_id: lib.id }, `force=${force}`), { method: 'POST' });
             if (res.ok) {
                 // We rely on the pollInterval to update the status from here
                 window.parker.showToast("Scan started", 'info');

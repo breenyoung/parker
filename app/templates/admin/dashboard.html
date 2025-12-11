@@ -12,7 +12,7 @@
 
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         
-        <a href="/admin/libraries" class="block bg-gray-800 hover:bg-gray-750 border border-gray-700 hover:border-blue-500 rounded-lg p-6 transition-all group shadow-lg">
+        <a :href="window.parker.route('admin.libraries')" class="block bg-gray-800 hover:bg-gray-750 border border-gray-700 hover:border-blue-500 rounded-lg p-6 transition-all group shadow-lg">
             <div class="flex items-center justify-between mb-4">
                 <div class="w-12 h-12 bg-blue-900/30 rounded-lg flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
                     📂
@@ -23,7 +23,7 @@
             <p class="text-sm text-gray-400">Manage library paths, trigger manual scans, and remove folders.</p>
         </a>
 
-        <a href="/admin/users" class="block bg-gray-800 hover:bg-gray-750 border border-gray-700 hover:border-purple-500 rounded-lg p-6 transition-all group shadow-lg">
+        <a :href="window.parker.route('admin.users')" class="block bg-gray-800 hover:bg-gray-750 border border-gray-700 hover:border-purple-500 rounded-lg p-6 transition-all group shadow-lg">
             <div class="flex items-center justify-between mb-4">
                 <div class="w-12 h-12 bg-purple-900/30 rounded-lg flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
                     👥
@@ -34,7 +34,7 @@
             <p class="text-sm text-gray-400">Create users, reset passwords, and manage library access permissions.</p>
         </a>
 
-        <a href="/admin/jobs" class="block bg-gray-800 hover:bg-gray-750 border border-gray-700 hover:border-green-500 rounded-lg p-6 transition-all group shadow-lg">
+        <a :href="window.parker.route('admin.jobs')" class="block bg-gray-800 hover:bg-gray-750 border border-gray-700 hover:border-green-500 rounded-lg p-6 transition-all group shadow-lg">
             <div class="flex items-center justify-between mb-4">
                 <div class="w-12 h-12 bg-green-900/30 rounded-lg flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
                     📋
@@ -45,7 +45,7 @@
             <p class="text-sm text-gray-400">View the history of background scans, imported counts, and error logs.</p>
         </a>
 
-        <a href="/admin/tasks" class="block bg-gray-800 hover:bg-gray-750 border border-gray-700 hover:border-orange-500 rounded-lg p-6 transition-all group shadow-lg">
+        <a :href="window.parker.route('admin.tasks')" class="block bg-gray-800 hover:bg-gray-750 border border-gray-700 hover:border-orange-500 rounded-lg p-6 transition-all group shadow-lg">
             <div class="flex items-center justify-between mb-4">
                 <div class="w-12 h-12 bg-orange-900/30 rounded-lg flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
                     🛠
@@ -56,7 +56,7 @@
             <p class="text-sm text-gray-400">Run database cleanup tasks, clear caches, and optimize storage.</p>
         </a>
 
-        <a href="/admin/settings" class="block bg-gray-800 hover:bg-gray-750 border border-gray-700 hover:border-red-500 rounded-lg p-6 transition-all group shadow-lg">
+        <a :href="window.parker.route('admin.settings')" class="block bg-gray-800 hover:bg-gray-750 border border-gray-700 hover:border-red-500 rounded-lg p-6 transition-all group shadow-lg">
             <div class="flex items-center justify-between mb-4">
                 <div class="w-12 h-12 bg-red-900/30 rounded-lg flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
                     ️⚙️
@@ -67,7 +67,7 @@
             <p class="text-sm text-gray-400">Change various system settings.</p>
         </a>
 
-        <a href="/admin/stats" class="block bg-gray-800 hover:bg-gray-750 border border-gray-700 hover:border-indigo-500 rounded-lg p-6 transition-all group shadow-lg">
+        <a :href="window.parker.route('admin.stats')" class="block bg-gray-800 hover:bg-gray-750 border border-gray-700 hover:border-indigo-500 rounded-lg p-6 transition-all group shadow-lg">
             <div class="flex items-center justify-between mb-4">
                 <div class="w-12 h-12 bg-indigo-900/30 rounded-lg flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
                     📊
@@ -78,7 +78,7 @@
             <p class="text-sm text-gray-400">View library size, issue counts, and server usage metrics.</p>
         </a>
 
-        <a href="/admin/reports" class="block bg-gray-800 hover:bg-gray-750 border border-gray-700 hover:border-teal-500 rounded-lg p-6 transition-all group shadow-lg">
+        <a :href="window.parker.route('admin.reports')" class="block bg-gray-800 hover:bg-gray-750 border border-gray-700 hover:border-teal-500 rounded-lg p-6 transition-all group shadow-lg">
             <div class="flex items-center justify-between mb-4">
                 <div class="w-12 h-12 bg-teal-900/30 rounded-lg flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
                     📑
@@ -89,7 +89,7 @@
             <p class="text-sm text-gray-400">Analyze collection health, missing issues, and storage usage.</p>
         </a>
 
-        <a href="/admin/migration" class="block bg-gray-800 hover:bg-gray-750 border border-gray-700 hover:border-yellow-500 rounded-lg p-6 transition-all group shadow-lg">
+        <a :href="window.parker.route('admin.migration')" class="block bg-gray-800 hover:bg-gray-750 border border-gray-700 hover:border-yellow-500 rounded-lg p-6 transition-all group shadow-lg">
             <div class="flex items-center justify-between mb-4">
                 <div class="w-12 h-12 bg-yellow-900/30 rounded-lg flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
                     ➡️

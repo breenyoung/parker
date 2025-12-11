@@ -7,7 +7,7 @@
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-3xl font-bold text-white">System Job History</h1>
         <button 
-            @click="loadJobs()" 
+            x-on:click="loadJobs()"
             class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-white flex items-center gap-2"
         >
             <span :class="{'animate-spin': loading}">↻</span> Refresh
@@ -84,7 +84,7 @@
                             <td class="px-6 py-4 text-sm" x-text="formatDate(job.created_at)"></td>
 
                             <td class="px-6 py-4">
-                                <button @click="viewDetails(job)" class="text-blue-400 hover:text-blue-300 text-sm font-semibold">Details</button>
+                                <button x-on:click="viewDetails(job)" class="text-blue-400 hover:text-blue-300 text-sm font-semibold">Details</button>
                             </td>
                         </tr>
                     </template>
@@ -169,7 +169,7 @@
             async loadJobs() {
                 this.loading = true;
                 try {
-                    const response = await fetch(window.parker.url('/api/jobs?limit=50'));
+                    const response = await fetch(window.parker.route('jobs.list', {}, 'limit=50'));
                     if(response.ok) this.jobs = await response.json();
                 } catch (e) { console.error(e); }
                 finally { this.loading = false; }
