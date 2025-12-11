@@ -272,54 +272,6 @@ function showToast(message, type = 'info') {
     }, 3000);
 }
 
-// 2. HTMX EVENT HANDLERS
-// Inject Token into HTMX requests
-document.body.addEventListener('htmx:configRequest', function(evt) {
-    const token = localStorage.getItem('token');
-    if (token) {
-        evt.detail.headers['Authorization'] = `Bearer ${token}`;
-    }
-});
-
-document.body.addEventListener('htmx:beforeRequest', function(evt) {
-    // console.log('Request starting:', evt.detail);
-});
-
-document.body.addEventListener('htmx:afterRequest', function(evt) {
-    if (!evt.detail.successful) {
-        // console.error('Request failed:', evt.detail);
-        // Don't show toast for 401s, the responseError handler will handle redirect
-        if (evt.detail.xhr.status !== 401) {
-            showToast('Request failed. Please try again.', 'error');
-        }
-    }
-});
-
-document.body.addEventListener('htmx:responseError', function(evt) {
-    // Handle HTMX 401 Redirects
-    if (evt.detail.xhr.status === 401) {
-        localStorage.removeItem('token');
-        window.location.href = '/login';
-        return;
-    }
-    console.error('Response error:', evt.detail);
-    showToast('Server error. Please try again later.', 'error');
-});
-
-// Handle JSON responses in HTMX
-document.body.addEventListener('htmx:beforeSwap', function(evt) {
-    // Check if response is JSON
-    const contentType = evt.detail.xhr.getResponseHeader('Content-Type');
-    if (contentType && contentType.includes('application/json')) {
-        try {
-            const data = JSON.parse(evt.detail.xhr.response);
-            if (data.message) showToast(data.message, 'success');
-            if (data.error) showToast(data.error, 'error');
-        } catch (e) {
-            console.error('Error parsing JSON:', e);
-        }
-    }
-});
 
 // Keyboard shortcuts
 document.addEventListener('keydown', function(e) {

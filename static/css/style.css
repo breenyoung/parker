@@ -111,15 +111,6 @@ body {
     overflow-y: auto;
 }
 
-/* Loading states */
-.htmx-request .htmx-indicator {
-    display: inline-block;
-}
-
-.htmx-indicator {
-    display: none;
-}
-
 /* Scrollbar */
 ::-webkit-scrollbar {
     width: 12px;
