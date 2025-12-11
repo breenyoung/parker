@@ -39,9 +39,6 @@ class Settings(BaseSettings):
     # Supported formats
     supported_extensions: list = [".cbz", ".cbr"]
 
-    #batch_window_seconds: int = 600 # 10 mins
-    batch_window_seconds: int = 300
-
     # --- NEW CONFIG STYLE ---
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
