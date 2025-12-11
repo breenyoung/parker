@@ -46,7 +46,7 @@
                     <span x-text="icon"></span>
                     <span x-text="title"></span>
                 </h2>
-                <a :href="window.parker.url(`/search?smart_list_id=${listId}`)" class="text-xs text-blue-400 hover:text-white transition-colors">View All</a>
+                <a :href="window.parker.route('pages.search', {}, `smart_list_id=${listId}`)" class="text-xs text-blue-400 hover:text-white transition-colors">View All</a>
             </div>
 
             <div class="flex space-x-4 overflow-x-auto pb-6 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
@@ -113,7 +113,7 @@
             <h2 class="text-xl font-bold text-white">
                 <span>✨</span> Recently Added Series
             </h2>
-            <a href="/search?sort_by=created&sort_order=desc" class="text-sm text-blue-400 hover:text-white transition-colors">View All</a>
+            <a :href="window.parker.route('pages.search', {}, 'sort_by=created&sort_order=desc')" class="text-sm text-blue-400 hover:text-white transition-colors">View All</a>
         </div>
 
         <div class="flex space-x-6 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
@@ -128,7 +128,7 @@
             <h2 class="text-xl font-bold text-white">
                 <span>🔁</span> Recently Updated Series
             </h2>
-            <a href="/search?sort_by=updated&sort_order=desc" class="text-sm text-blue-400 hover:text-white transition-colors">View All</a>
+            <a :href="window.parker.route('pages.search', {}, 'sort_by=updated&sort_order=desc')" class="text-sm text-blue-400 hover:text-white transition-colors">View All</a>
         </div>
 
         <div class="flex space-x-6 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
@@ -188,7 +188,7 @@ function homePage() {
         async fetchStarred() {
             try {
                 // Fetch starred series sorted by updated (recently modified or starred)
-                const res = await fetch(window.parker.url('/api/series/?only_starred=true&size=20'));
+                const res = await fetch(window.parker.route('series.list', {}, '?only_starred=true&size=20'));
                 if (res.ok) {
                     const data = await res.json();
                     this.starredSeries = data.items;
@@ -200,7 +200,7 @@ function homePage() {
         async fetchRecent() {
             try {
                 // Fetch top 10 created descending
-                const res = await fetch(window.parker.url('/api/series/?sort_by=created&sort_desc=true&size=10'));
+                const res = await fetch(window.parker.route('series.list', {}, 'sort_by=created&sort_desc=true&size=10'));
                 if (res.ok) {
                     const data = await res.json();
                     this.recentSeries = data.items;
@@ -212,7 +212,7 @@ function homePage() {
         async fetchUpdated() {
             try {
                 // Fetch top 10 updated descending
-                const res = await fetch(window.parker.url('/api/series/?sort_by=updated&sort_desc=true&size=10'));
+                const res = await fetch(window.parker.route('series.list', {}, 'sort_by=updated&sort_desc=true&size=10'));
                 if (res.ok) {
                     const data = await res.json();
                     this.updatedSeries = data.items;
@@ -223,7 +223,7 @@ function homePage() {
 
         async fetchOnDeck() {
             try {
-                const res = await fetch(window.parker.url('/api/home/up-next'));
+                const res = await fetch(window.parker.route('home.up_next'));
                 if (res.ok) {
                     this.onDeckSeries = await res.json();
                 }
@@ -233,7 +233,7 @@ function homePage() {
 
         async fetchResume() {
             try {
-                const res = await fetch(window.parker.url('/api/home/resume'));
+                const res = await fetch(window.parker.route('home.resume_reading'));
                 if (res.ok) this.resumeComics = await res.json();
             } catch(e) { console.error(e); }
             finally { this.loading.resume = false; }
@@ -241,7 +241,7 @@ function homePage() {
 
         async fetchRandom() {
             try {
-                const res = await fetch(window.parker.url('/api/home/random?limit=12'));
+                const res = await fetch(window.parker.route('home.random_gems', {}, 'limit=12'));
                 if (res.ok) this.randomSeries = await res.json();
             } catch(e) { console.error(e); }
             finally { this.loading.random = false; }
@@ -249,7 +249,7 @@ function homePage() {
 
         async fetchTopRated() {
             try {
-                const res = await fetch(window.parker.url('/api/home/rated?limit=12'));
+                const res = await fetch(window.parker.route('home.top_rated', {}, 'limit=12'));
                 if (res.ok) this.topRatedComics = await res.json();
             } catch(e) { console.error(e); }
             finally { this.loading.topRated = false; }
@@ -257,7 +257,7 @@ function homePage() {
 
         async fetchSmartLists() {
             try {
-                const res = await fetch(window.parker.url('/api/smart-lists/'));
+                const res = await fetch(window.parker.route('smart_lists.list'));
                 if (res.ok) {
                     const allLists = await res.json();
                     // Only show the ones the user enabled for dashboard
