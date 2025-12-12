@@ -41,7 +41,8 @@ class LibraryScanner:
 
     def scan(self, force: bool = False) -> dict:
         """
-        Scan the library path and import comics using batch commits.
+        Scan the library path and import comics using intelligent batch commits.
+        Uses Nested Transactions (Savepoints) to ensure one bad egg doesn't spoil the batch.
         """
         library_path = Path(self.library.path)
 
@@ -90,33 +91,46 @@ class LibraryScanner:
                     # Check against our pre-fetched map
                     existing = existing_map.get(file_path_str)
 
-                    comic = None
-                    if existing:
-                        # Check modification time
-                        if not force and existing.file_modified_at and existing.file_modified_at >= file_mtime:
-                            skipped += 1
-                            continue
-                        else:
-                            # Update existing
-                            if force:
-                                self.logger.info(f"Force scanning: {file_path.name}")
+                    # --- INTELLIGENT BATCHING START ---
+                    # We create a SAVEPOINT for this specific file.
+                    # If an error happens inside this 'with' block, it rolls back ONLY this file.
+                    # The rest of the session (previous successful files) remains valid.
+                    with self.db.begin_nested():
+
+                        comic = None
+
+                        if existing:
+                            # Check modification time
+                            if not force and existing.file_modified_at and existing.file_modified_at >= file_mtime:
+                                skipped += 1
+                                continue # Skip logic doesn't need DB interaction
                             else:
-                                self.logger.info(f"Updating modified: {file_path.name}")
+                                # Update existing
+                                if force:
+                                    self.logger.info(f"Force scanning: {file_path.name}")
+                                else:
+                                    self.logger.info(f"Updating modified: {file_path.name}")
 
-                            comic = self._update_comic(existing, file_path, file_mtime, file_size_bytes)
+                                comic = self._update_comic(existing, file_path, file_mtime, file_size_bytes)
+                                if comic:
+                                    updated += 1
+                                    pending_changes += 1
+                        else:
+                            # Import new
+                            comic = self._import_comic(file_path, file_mtime, file_size_bytes)
+                            if comic:
+                                imported += 1
+                                pending_changes += 1
+                                # Update our local map so duplicates in same run are caught (unlikely but safe)
+                                existing_map[file_path_str] = comic
 
-                            # TODO: if comic comes back as None, do something and dont increment
-
-                            updated += 1
-                            pending_changes += 1
-                    else:
-                        # Import new
-                        comic = self._import_comic(file_path, file_mtime, file_size_bytes)
+                        # FORCE FLUSH: Validate constraints (like NOT NULL) *inside* the savepoint.
+                        # If this fails, the exception is raised here, caught by 'with', and rolled back cleanly.
                         if comic:
-                            imported += 1
-                            pending_changes += 1
-                            # Update our local map so duplicates in same run are caught (unlikely but safe)
-                            existing_map[file_path_str] = comic
+                            self.db.flush()
+
+                    # --- INTELLIGENT BATCHING END ---
+                    # If we reached here, the individual item is safely staged.
 
                     if comic:
                         found_comics.append({
@@ -135,13 +149,10 @@ class LibraryScanner:
                         pending_changes = 0
 
                 except Exception as e:
-                    # If an error occurs, we log it but try not to kill the whole scan
+                    # Logic: The savepoint has already rolled back the DB changes for this specific file.
+                    # The session is clean and ready for the next file.
                     errors.append({"file": str(file_path), "error": str(e)})
                     self.logger.error(f"Error processing {file_path}: {e}")
-                    # In case of database error, we might need to rollback the current transaction
-                    # to proceed, but that would lose the pending batch.
-                    # Advanced logic would use savepoints, but simple try/catch per file is usually enough
-                    # for metadata errors. DB errors will likely raise out.
 
         # Commit any remaining items
         if pending_changes > 0:
@@ -209,7 +220,9 @@ class LibraryScanner:
             return None
 
         # Get or create series (Uses Cache)
-        series_name = metadata.get('series', 'Unknown Series')
+        # Robust 'Unknown' handling for Series Name to prevent NOT NULL errors
+        # If metadata['series'] is None or "", default to "Unknown Series"
+        series_name = metadata.get('series') or 'Unknown Series'
         series = self._get_or_create_series(series_name)
 
         # Get or create volume (Uses Cache)
@@ -324,7 +337,8 @@ class LibraryScanner:
             return None
 
         # Check if series/volume changed
-        series_name = metadata.get('series', 'Unknown Series')
+        # Robust 'Unknown' handling
+        series_name = metadata.get('series') or 'Unknown Series'
         volume_num = int(metadata.get('volume', 1)) if metadata.get('volume') else 1
 
         series = self._get_or_create_series(series_name)
@@ -369,6 +383,7 @@ class LibraryScanner:
         comic.characters.clear()
         comic.teams.clear()
         comic.locations.clear()
+        comic.genres.clear()
 
         if metadata.get('characters'):
             comic.characters = self.tag_service.get_or_create_characters(metadata.get('characters'))
