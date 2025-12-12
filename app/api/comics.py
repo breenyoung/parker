@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response, FileResponse
 from sqlalchemy import Float, func
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 from typing import List, Annotated, Literal
 from pathlib import Path
 import re
@@ -72,17 +72,22 @@ async def search_comics(request: SearchRequest, db: SessionDep, current_user: Cu
 async def get_comic(comic_id: int, db: SessionDep, current_user: CurrentUser):
     """
     Get a specific comic with all metadata.
-    OPTIMIZED: Uses joinedload to fetch all metadata (credits, tags, hierarchy) in 1 query.
+    OPTIMIZED: Uses 'selectinload' for lists to prevent Cartesian Product explosion.
     """
 
-    # 1. Fetch Comic with all relationships eagerly loaded
+    # 1. Fetch Comic with optimized loading strategy
+    # - joinedload: Good for "One-to-One" or "Many-to-One" (Parents) -> JOINs in SQL
+    # - selectinload: Good for "One-to-Many" (Lists) -> Separate fast queries
     comic = db.query(Comic).options(
+        # Parents: Join them (1 row)
         joinedload(Comic.volume).joinedload(Volume.series).joinedload(Series.library),
-        joinedload(Comic.credits).joinedload(ComicCredit.person),
-        joinedload(Comic.characters),
-        joinedload(Comic.teams),
-        joinedload(Comic.locations),
-        joinedload(Comic.genres)
+
+        # Children/Lists: Select them separately to avoid 10x10x10 row explosion
+        selectinload(Comic.credits).joinedload(ComicCredit.person),  # Keep person joined to credit
+        selectinload(Comic.characters),
+        selectinload(Comic.teams),
+        selectinload(Comic.locations),
+        selectinload(Comic.genres)
     ).filter(Comic.id == comic_id).first()
 
     if not comic:
@@ -107,7 +112,6 @@ async def get_comic(comic_id: int, db: SessionDep, current_user: CurrentUser):
         credits[credit.role].append(credit.person.name)
 
     # Check Progress
-    # This is the ONLY secondary query (needed to get specific user state)
     read_status = "new"
     progress = db.query(ReadingProgress).filter(
         ReadingProgress.comic_id == comic.id,
@@ -162,7 +166,7 @@ async def get_comic(comic_id: int, db: SessionDep, current_user: CurrentUser):
         "language_iso": comic.language_iso,
         "community_rating": comic.community_rating,
 
-        # Tags (Accessing these is now O(1) in-memory)
+        # Tags
         "characters": [c.name for c in comic.characters],
         "teams": [t.name for t in comic.teams],
         "locations": [l.name for l in comic.locations],
