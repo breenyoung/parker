@@ -218,6 +218,11 @@ async def get_metadata_health_report(db: SessionDep, user: AdminUser):
     # Each check is a tuple: (Label, SQLAlchemy Filter, Severity)
     checks = [
         (
+            "Unknown Series (Scan Fallback)",
+            Comic.volume.has(Volume.series.has(Series.name == "Unknown Series")),
+            "error"
+        ),
+        (
             "Missing Summary",
             or_(Comic.summary == None, Comic.summary == ""),
             "warning"

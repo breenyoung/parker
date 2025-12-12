@@ -72,7 +72,7 @@
 
                     <div class="flex items-center">
                         <a 
-                            :href="window.parker.route('pages.search', {}, `field=${getSearchField(item.label)}&operator=is_empty`)"
+                            :href="getSearchLink(item.label)"
                             class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm rounded transition-colors whitespace-nowrap"
                         >
                             View All
@@ -116,14 +116,23 @@ function healthReport() {
             if(this.report.overall_score >= 70) return 'text-yellow-500';
             return 'text-red-500';
         },
+        getSearchLink(label) {
+            const baseUrl = window.parker.route('pages.search');
 
-        getSearchField(label) {
-            // Helper to map report labels to search query params
-            if(label.includes("Summary")) return "summary"; // Note: Search needs to support this field
-            if(label.includes("Year")) return "year";
-            if(label.includes("Publisher")) return "publisher";
-            if(label.includes("Web")) return "web";
-            return "title"; // Fallback
+            // 1. Special Case: Unknown Series (Value Match)
+            if (label === "Unknown Series (Scan Fallback)") {
+                return `${baseUrl}?field=series&operator=equal&value=Unknown Series`;
+            }
+
+            // 2. Default Case: Empty Field Checks
+            let field = "title";
+            if (label.includes("Summary")) field = "summary";
+            else if (label.includes("Year")) field = "year";
+            else if (label.includes("Publisher")) field = "publisher";
+            else if (label.includes("Web")) field = "web";
+            //else if (label.includes("Page Count")) field = "page_count"; // Future
+
+            return `${baseUrl}?field=${field}&operator=is_empty`;
         }
     }
 }
