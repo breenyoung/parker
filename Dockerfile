@@ -27,8 +27,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Create necessary directories
-RUN mkdir -p storage/database storage/cache storage/cover storage/avatars storage/logs
+# Copy the entrypoint script
+COPY entrypoint.sh .
+RUN chmod +x entrypoint.sh
 
 # Expose port
 EXPOSE 8000
@@ -37,6 +38,6 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-# Run migrations AND then start the app
-CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
-#CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run the script when the container starts
+CMD ["./entrypoint.sh"]
+
