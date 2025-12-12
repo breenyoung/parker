@@ -1,5 +1,5 @@
 @echo off
-echo Starting Comic Server...
+echo Starting Parker...
 echo.
 
 REM Check if Python is installed

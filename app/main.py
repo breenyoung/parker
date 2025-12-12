@@ -117,7 +117,7 @@ async def lifespan(app: FastAPI):
     # START SCHEDULER
     scheduler_service.start()
 
-    logger.info("Comic Server starting up...")
+    logger.info("Parker starting up...")
     logger.info("Frontend available at http://localhost:8000")
     logger.info("Administration available at http://localhost:8000/admin")
     logger.info("API docs available at http://localhost:8000/docs")

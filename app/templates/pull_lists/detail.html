@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Pull List Details - Comic Server{% endblock %}
+{% block title %}Pull List Details - Parker{% endblock %}
 
 {% block extra_head %}
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
@@ -226,7 +226,7 @@ function pullListDetail() {
                 const res = await fetch(window.parker.route('pull_lists.detail', { list_id: this.listId }));
                 if(res.ok) {
                     this.list = await res.json();
-                    document.title = `${this.list.name} - Comic Server`;
+                    document.title = `${this.list.name} - Parker`;
                 }
             } catch(e) { console.error(e); }
             finally { this.loading = false; }

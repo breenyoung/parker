@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Comic Details - Comic Server{% endblock %}
+{% block title %}Comic Details - Parker{% endblock %}
 
 {% block content %}
 
@@ -330,7 +330,7 @@ function comicDetail() {
                 if (!res.ok) throw new Error("Comic not found");
                 this.comic = await res.json();
                 this.loading = false;
-                document.title = `${this.comic?.series} #${this.comic?.number} - Comic Server`;
+                document.title = `${this.comic?.series} #${this.comic?.number} - Parker`;
             } catch (e) {
                 console.error(e);
             }

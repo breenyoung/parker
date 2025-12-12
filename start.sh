@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Comic Server Startup Script
+# Parker Startup Script
 
-echo "🚀 Starting Comic Server..."
+echo "🚀 Starting Parker Server..."
 echo ""
 
 # Check if Python is installed

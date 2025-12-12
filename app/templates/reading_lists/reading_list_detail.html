@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Reading List - Comic Server{% endblock %}
+{% block title %}Reading List - Parker{% endblock %}
 
 {% block content %}
 <div class="space-y-6" x-data="readingListDetail()">
@@ -203,7 +203,7 @@ function readingListDetail() {
 
                 if (!res.ok) throw new Error('Not found');
                 this.readingList = await res.json();
-                document.title = `${this.readingList.name} - Comic Server`;
+                document.title = `${this.readingList.name} - Parker`;
             } catch (err) {
                 console.error(err);
             } finally {
