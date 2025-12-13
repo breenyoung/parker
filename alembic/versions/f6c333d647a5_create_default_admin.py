@@ -10,9 +10,6 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.sql import table, column
-from passlib.hash import bcrypt
-from app.core.security import get_password_hash
-
 
 
 # revision identifiers, used by Alembic.
@@ -43,7 +40,7 @@ def upgrade() -> None:
             users.insert().values(
                 username="admin",
                 email="admin@example.com",
-                hashed_password=get_password_hash("admin"),
+                hashed_password='$2b$12$A//4Gkpn1.4pwUJE4nrMMef5iFScpRG3qq3fNFZXTC4M6mkmthF0C', # admin
                 is_superuser=True,
                 is_active=True,
             )
