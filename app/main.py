@@ -78,31 +78,6 @@ async def lifespan(app: FastAPI):
     settings.avatar_dir.mkdir(parents=True, exist_ok=True)
 
 
-    # ---Auto-Create Default Admin and initialize settings  ---
-    db = SessionLocal()
-    try:
-
-        # Initialize default settings
-        SettingsService(db).initialize_defaults()
-        print("Initialized system settings")
-
-        user_count = db.query(User).count()
-        if user_count == 0:
-            print("No users found. Creating default admin...")
-            default_admin = User(
-                username="admin",
-                email="admin@example.com",
-                hashed_password=get_password_hash("admin"),  # Default password
-                is_superuser=True,
-                is_active=True
-            )
-            db.add(default_admin)
-            db.commit()
-            print("Created user: admin / admin")
-    finally:
-        db.close()
-    # --------------------------------------
-
     # --- SETUP LOGGING (Dynamic) ---
     # Fetch from DB (defaults to "INFO" if the setting is missing)
     # We use the loader because it is safe to call before the app is fully running.
