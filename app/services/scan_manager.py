@@ -104,6 +104,7 @@ class ScanManager:
                     job.error_message = error
 
                 db.commit()
+                self.logger.info(f"Job {job_id} updated successfully")
                 return  # Success!
             except OperationalError as e:
                 if "locked" in str(e).lower() and attempt < 4:
