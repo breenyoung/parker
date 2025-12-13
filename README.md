@@ -113,6 +113,8 @@ The latest tag is built from versioned releases and is the recommended option fo
   ```bash
   docker run -d \
     -p 8000:8000 \
+    -v /some/path/config:/app/storage \
+    -v /some/path/comics:/comics \
     ghcr.io/parker-server/parker:latest
   ```
  
@@ -123,6 +125,8 @@ It includes the newest features and fixes, but may be less stable
   ```bash
   docker run -d \
     -p 8000:8000 \
+    -v /some/path/config:/app/storage \
+    -v /some/path/comics:/comics \
     ghcr.io/parker-server/parker:edge
   ```
 
