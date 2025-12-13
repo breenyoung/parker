@@ -105,6 +105,28 @@
                     </div>
                 </div>
 
+                <div class="border-t border-gray-700 pt-4 mt-4">
+                    <label class="block text-xs text-gray-500 uppercase mb-2">Content Restrictions</label>
+
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-1">Max Age Rating</label>
+                            <select x-model="newUser.max_age_rating" class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white focus:border-blue-500 outline-none">
+                                <option value="">No Restriction (Allow All)</option>
+                                <template x-for="rating in ageRatings" :key="rating">
+                                    <option :value="rating" x-text="rating"></option>
+                                </template>
+                            </select>
+                            <p class="text-xs text-gray-500 mt-1">User can read content up to this level.</p>
+                        </div>
+
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" x-model="newUser.allow_unknown_age_ratings" id="new_allow_unknown" class="rounded bg-gray-700 border-gray-600 text-blue-600 focus:ring-blue-500">
+                            <label for="new_allow_unknown" class="text-gray-300 select-none text-sm">Include "Unknown" / Untagged Content</label>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="flex justify-end gap-2 mt-6">
                     <button @click="showAddModal = false" class="text-gray-400 hover:text-white px-4 py-2 transition-colors">Cancel</button>
                     <button @click="createUser()" class="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded transition-colors shadow-lg">Create User</button>
@@ -157,6 +179,28 @@
                     <p x-show="editingUser.is_superuser" class="text-xs text-blue-400 mt-1">Admins have access to all libraries.</p>
                 </div>
 
+                <div class="border-t border-gray-700 pt-4 mt-4">
+                    <label class="block text-xs text-gray-500 uppercase mb-2">Content Restrictions</label>
+
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-1">Max Age Rating</label>
+                            <select x-model="newUser.max_age_rating" class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white focus:border-blue-500 outline-none">
+                                <option value="">No Restriction (Allow All)</option>
+                                <template x-for="rating in ageRatings" :key="rating">
+                                    <option :value="rating" x-text="rating"></option>
+                                </template>
+                            </select>
+                            <p class="text-xs text-gray-500 mt-1">User can read content up to this level.</p>
+                        </div>
+
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" x-model="newUser.allow_unknown_age_ratings" id="new_allow_unknown" class="rounded bg-gray-700 border-gray-600 text-blue-600 focus:ring-blue-500">
+                            <label for="new_allow_unknown" class="text-gray-300 select-none text-sm">Include "Unknown" / Untagged Content</label>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="flex justify-end gap-2 mt-6">
                     <button x-on:click="showEditModal = false" class="text-gray-400 hover:text-white px-4 py-2 transition-colors">Cancel</button>
                     <button x-on:click="saveUser()" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded transition-colors shadow-lg">Save Changes</button>
@@ -168,6 +212,13 @@
 </div>
 
 <script>
+
+const AGE_RATINGS = [
+    "Early Childhood", "Everyone", "G", "Kids to Adults",
+    "Everyone 10+", "PG", "Teen", "Rating Pending",
+    "M", "MA15+", "Mature 17+", "Adults Only 18+", "R18+", "X18+"
+];
+
 function userManager() {
     return {
         users: [],
@@ -178,13 +229,15 @@ function userManager() {
         showEditModal: false,
 
         // Data Models
-        newUser: { username: '', email: '', password: '', is_superuser: false, library_ids: [] },
-        editingUser: { id: null, username: '', password: '', email: '', is_superuser: false, is_active: true, library_ids: [] },
+        newUser: { username: '', email: '', password: '', is_superuser: false, library_ids: [], max_age_rating: '', allow_unknown_age_ratings: false },
+        editingUser: { id: null, username: '', password: '', email: '', is_superuser: false, is_active: true, library_ids: [], max_age_rating: '', allow_unknown_age_ratings: false },
 
         // Pagination State
         currentPage: 1,
         pageSize: 20,
         totalItems: 0,
+
+        ageRatings: AGE_RATINGS,
 
         init() {
             this.loadUsers();
@@ -210,7 +263,7 @@ function userManager() {
         },
 
         openAddModal() {
-            this.newUser = { username: '', email: '', password: '', is_superuser: false, library_ids: [] };
+            this.newUser = { username: '', email: '', password: '', is_superuser: false, library_ids: [], max_age_rating: '', allow_unknown_age_ratings: false };
             this.showAddModal = true;
         },
 
@@ -241,7 +294,9 @@ function userManager() {
                 is_superuser: user.is_superuser,
                 is_active: user.is_active,
                 // Ensure we handle the list of IDs from the API response
-                library_ids: user.accessible_library_ids ? [...user.accessible_library_ids] : []
+                library_ids: user.accessible_library_ids ? [...user.accessible_library_ids] : [],
+                max_age_rating: user.max_age_rating || '',
+                allow_unknown_age_ratings: user.allow_unknown_age_ratings || false
             };
             this.showEditModal = true;
         },
@@ -252,7 +307,9 @@ function userManager() {
                 email: this.editingUser.email,
                 is_superuser: this.editingUser.is_superuser,
                 is_active: this.editingUser.is_active,
-                library_ids: this.editingUser.library_ids
+                library_ids: this.editingUser.library_ids,
+                max_age_rating: this.editingUser.max_age_rating,
+                allow_unknown_age_ratings: this.editingUser.allow_unknown_age_ratings
             };
 
             if (this.editingUser.password) {
