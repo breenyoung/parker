@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from sqlalchemy import desc
+from sqlalchemy.orm import joinedload
 from typing import List, Optional, Annotated
 import json
 
@@ -23,10 +24,11 @@ def determine_library_name(job_type: JobType, job_library: Library) -> str:
 @router.get("/active", name="active")
 async def get_active_job(db: SessionDep):
     """
-    Get the currently running scan job (if any).
-    Useful for showing a global progress spinner.
+    Get the currently running scan job.
+    OPTIMIZED: Eager loads the Library to avoid a secondary DB query.
     """
-    job = db.query(ScanJob).filter(
+    # joinedload(ScanJob.library) ensures determine_library_name doesn't hit the DB
+    job = db.query(ScanJob).options(joinedload(ScanJob.library)).filter(
         ScanJob.status == JobStatus.RUNNING
     ).first()
 
@@ -53,8 +55,10 @@ async def list_jobs(
 ):
     """
     List recent scan jobs.
+    OPTIMIZED: Uses joinedload to fetch Job + Library in 1 query.
     """
-    query = db.query(ScanJob)
+    # Start query with Eager Loading
+    query = db.query(ScanJob).options(joinedload(ScanJob.library))
 
     if status:
         query = query.filter(ScanJob.status == status)
@@ -85,8 +89,11 @@ async def get_job_status(
     db: SessionDep,
     user: AdminUser
 ):
-    """Get the live status of a specific job"""
-    job = db.query(ScanJob).get(job_id)
+    """
+    Get the live status of a specific job.
+    """
+    # Replaced db.get() with query().options() to ensure no lazy load on library access
+    job = db.query(ScanJob).options(joinedload(ScanJob.library)).filter(ScanJob.id == job_id).first()
 
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -97,9 +104,9 @@ async def get_job_status(
 async def get_job_details(job_id: int, db: SessionDep, admin_user: AdminUser):
     """
     Get detailed status of a specific job.
-    Frontend should poll this endpoint every few seconds while status='running'.
+    OPTIMIZED: Eager loads library.
     """
-    job = db.query(ScanJob).filter(ScanJob.id == job_id).first()
+    job = db.query(ScanJob).options(joinedload(ScanJob.library)).filter(ScanJob.id == job_id).first()
 
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
