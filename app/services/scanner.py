@@ -193,7 +193,7 @@ class LibraryScanner:
         self.db.commit()
 
         elapsed_time = round(time.time() - start_time, 2)
-        self.logger.info(f"Elapsed time: {elapsed_time} seconds")
+        self.logger.info(f"Scanning complete - Elapsed time: {elapsed_time} seconds")
 
         return {
             "library": self.library.name,
