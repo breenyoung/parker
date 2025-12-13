@@ -24,10 +24,12 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     users = table(
         'users',
-        column('id', sa.Integer),
+        column('email', sa.String),
         column('username', sa.String),
-        column('password', sa.String),
-        column('is_admin', sa.Boolean),
+        column('hashed_password', sa.String),
+        column('is_superuser', sa.Boolean),
+        column('is_active', sa.Boolean),
+
     )
 
     # Insert only if table is empty
@@ -39,8 +41,10 @@ def upgrade() -> None:
         conn.execute(
             users.insert().values(
                 username="admin",
+                email="admin@example.com",
                 hashed_password=bcrypt.hash("admin"),
-                is_superuser=True
+                is_superuser=True,
+                is_active=True,
             )
         )
 
