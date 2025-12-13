@@ -22,6 +22,25 @@ NON_PLAIN_FORMATS = [
     'special'
 ]
 
+# Ordered from LEAST restrictive to MOST restrictive
+AGE_RATING_HIERARCHY = [
+    "Early Childhood",
+    "Everyone",
+    "G",
+    "Kids to Adults",
+    "Everyone 10+",
+    "PG",
+    "Teen",
+    "Rating Pending",
+    "M",
+    "MA15+",
+    "Mature 17+",
+    "Adults Only 18+",
+    "R18+",
+    "X18+"
+]
+
+
 def get_format_filters():
     """
     Returns SQL expressions to categorize comics.
