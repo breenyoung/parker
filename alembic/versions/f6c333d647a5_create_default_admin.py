@@ -11,6 +11,7 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.sql import table, column
 from passlib.hash import bcrypt
+from app.core.security import get_password_hash
 
 
 
@@ -42,7 +43,7 @@ def upgrade() -> None:
             users.insert().values(
                 username="admin",
                 email="admin@example.com",
-                hashed_password=bcrypt.hash("admin"),
+                hashed_password=get_password_hash("admin"),
                 is_superuser=True,
                 is_active=True,
             )
