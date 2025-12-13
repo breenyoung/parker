@@ -4,7 +4,7 @@ from app.config import settings
 
 engine = create_engine(
     settings.database_url,
-    connect_args={"check_same_thread": False, "timeout": 15}  # SQLite specific
+    connect_args={"check_same_thread": False, "timeout": 60}  # SQLite specific
 )
 
 @event.listens_for(engine, "connect")

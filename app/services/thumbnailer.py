@@ -6,7 +6,7 @@ from typing import Tuple, Dict, Any, List
 from sqlalchemy.orm import Session
 
 from app.core.settings_loader import get_cached_setting
-from app.database import SessionLocal
+from app.database import SessionLocal, engine
 from app.models.comic import Comic, Volume
 from app.models.library import Library
 from app.models.series import Series
@@ -92,6 +92,10 @@ def _thumbnail_writer(queue: Queue, stats_queue: Queue, batch_size: int = 25) ->
     Dedicated writer process: reads worker results and applies DB updates.
     OPTIMIZED: batch_size lowered to 25 to prevent holding the lock too long.
     """
+
+    # CRITICAL Dispose inherited connections
+    engine.dispose()
+
     from app.database import SessionLocal
 
     db = SessionLocal()
@@ -125,6 +129,12 @@ def _thumbnail_writer(queue: Queue, stats_queue: Queue, batch_size: int = 25) ->
             errors += sum(1 for i in batch if i.get("error"))
 
     finally:
+
+
+        # CRITICAL Close DB *BEFORE* signaling summary.
+        # This guarantees the lock is released before the parent process wakes up.
+        db.close()
+
         # Signal completion
         stats_queue.put({
             "summary": True,
@@ -132,8 +142,6 @@ def _thumbnail_writer(queue: Queue, stats_queue: Queue, batch_size: int = 25) ->
             "errors": errors,
             "skipped": skipped,
         })
-        db.close()
-
 
 class ThumbnailService:
     def __init__(self, db: Session, library_id: int = None):
