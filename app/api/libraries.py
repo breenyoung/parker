@@ -43,16 +43,34 @@ async def list_libraries(db: SessionDep,
         if limit:
             libs = libs[:limit]
 
+    # --- AGE RATING FILTER PREP ---
+    # We prepare the filter once to reuse inside the loop
+    series_age_filter = get_series_age_restriction(current_user)
+
     # Iterate and Count
     results = []
     for lib in libs:
 
         # Count Series directly
-        series_count = db.query(Series).filter(Series.library_id == lib.id).count()
+        series_query = db.query(Series).filter(Series.library_id == lib.id)
+
+        if series_age_filter is not None:
+            series_query = series_query.filter(series_age_filter)
+
+        series_count = series_query.count()
 
         # Count Issues (Join Comic -> Volume -> Series)
-        issue_count = db.query(Comic).join(Volume).join(Series) \
-            .filter(Series.library_id == lib.id).count()
+        # We count issues belonging to VISIBLE Series only.
+        # Under Poison Pill logic, Visible Series = Series with 0 banned comics.
+        # Therefore, this accurately reflects "Readable Issues".
+        issue_query = db.query(Comic).join(Volume).join(Series) \
+            .filter(Series.library_id == lib.id)
+
+        if series_age_filter is not None:
+            # Applying the series filter removes any comic belonging to a hidden series
+            issue_query = issue_query.filter(series_age_filter)
+
+        issue_count = issue_query.count()
 
         # Construct the response dict
         # We manually build the dict to inject the 'stats' object

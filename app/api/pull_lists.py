@@ -4,7 +4,7 @@ from sqlalchemy import func
 from typing import List, Optional
 from pydantic import BaseModel
 
-from app.core.comic_helpers import get_aggregated_metadata
+from app.core.comic_helpers import get_aggregated_metadata, check_container_restriction, get_banned_comic_condition
 from app.api.deps import SessionDep, CurrentUser
 from app.models.pull_list import PullList, PullListItem
 from app.models.comic import Comic
@@ -22,7 +22,19 @@ router = APIRouter()
 @router.get("/", name="list")
 def get_my_lists(db: SessionDep, current_user: CurrentUser):
     """List all pull lists for the current user."""
-    return db.query(PullList).filter(PullList.user_id == current_user.id).order_by(PullList.name).all()
+
+    query = db.query(PullList).filter(PullList.user_id == current_user.id)
+
+    # --- AGE RESTRICTION ---
+    if current_user.max_age_rating:
+        banned_condition = get_banned_comic_condition(current_user)
+        # Filter out Pull Lists that contain ANY banned comic
+        query = query.filter(
+            ~PullList.items.any(PullListItem.comic.has(banned_condition))
+        )
+    # -----------------------
+
+    return query.order_by(PullList.name).all()
 
 
 @router.post("/", name="create")
@@ -44,7 +56,20 @@ def get_list_details(list_id: int, db: SessionDep, current_user: CurrentUser):
     """
     Get list details + items sorted by user preference.
     OPTIMIZED: Uses joinedload to prevent N+1 queries on items loop.
+    Secured via Poison Pill.
     """
+
+    # --- SECURITY CHECK (fail fast) ---
+    check_container_restriction(
+        db, current_user,
+        PullListItem,
+        PullListItem.pull_list_id,
+        list_id,
+        "Pull list"
+    )
+    # ----------------------
+
+
     # 1. Fetch List with Eager Loading of Hierarchy
     plist = db.query(PullList).options(
         joinedload(PullList.items).joinedload(PullListItem.comic).joinedload(Comic.volume).joinedload(Volume.series)
