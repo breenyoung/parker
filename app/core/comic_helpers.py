@@ -1,5 +1,5 @@
 from typing import Any
-
+from fastapi import HTTPException
 from sqlalchemy import func, or_, not_, case
 
 from app.api.deps import SessionDep
@@ -127,6 +127,56 @@ def get_series_age_restriction(user, series_model=Series):
     # "Show me Series where NOT(Has Any Banned Comic)"
     return ~series_model.volumes.any(Volume.comics.any(banned_condition))
 
+def get_banned_comic_condition(user):
+    """
+    Returns a SQLAlchemy BinaryExpression representing 'Banned Content' for this user.
+    Used for filtering Lists and Collections.
+    """
+    if not user.max_age_rating:
+        return None
+
+    allowed_ratings, banned_ratings = get_age_rating_config(user)
+
+    # 1. Matches explicit ban list
+    condition = Comic.age_rating.in_(banned_ratings)
+
+    # 2. Matches Unknowns (if disallowed)
+    if not user.allow_unknown_age_ratings:
+        condition = or_(
+            condition,
+            Comic.age_rating == None,
+            Comic.age_rating == "",
+            func.lower(Comic.age_rating) == "unknown"
+        )
+
+    return condition
+
+def check_container_restriction(db, user, item_model, fk_column, container_id: int, type_name: str):
+    """
+    Generic 'Fail Fast' security check for Collections and Reading Lists.
+    Raises HTTPException(403) if the container holds ANY banned content.
+
+    Args:
+        db: Session
+        user: CurrentUser
+        item_model: The junction table (CollectionItem or ReadingListItem)
+        fk_column: The column to filter (CollectionItem.collection_id)
+        container_id: The ID to check
+        type_name: "Collection" or "Reading list" (for error message)
+    """
+    if not user.max_age_rating:
+        return
+
+    banned_condition = get_banned_comic_condition(user)
+
+    # Check if ANY item in this container matches the ban
+    has_banned = db.query(item_model.id).join(Comic)\
+        .filter(fk_column == container_id)\
+        .filter(banned_condition)\
+        .first()
+
+    if has_banned:
+        raise HTTPException(status_code=403, detail=f"{type_name} contains age-restricted content")
 
 def get_format_filters():
     """
