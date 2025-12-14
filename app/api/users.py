@@ -123,8 +123,8 @@ async def get_user_dashboard(db: SessionDep, current_user: CurrentUser):
 
     stats_result = stats_query.first()
 
-    issues_read = stats_query.issues_read or 0
-    total_pages = stats_query.total_pages or 0
+    issues_read = stats_result.issues_read or 0
+    total_pages = stats_result.total_pages or 0
 
     # Calculate Time (1.25 mins per page)
     time_read_str = get_reading_time(total_pages)
