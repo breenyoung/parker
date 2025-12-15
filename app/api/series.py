@@ -333,8 +333,6 @@ async def get_series_issues(
         else:
             sort_order = "asc"
 
-    print(f"series_name: {series_name} sort_order: {sort_order}")
-
     # Select Comic AND the completed status
     query = db.query(Comic, ReadingProgress.completed).outerjoin(
         ReadingProgress,

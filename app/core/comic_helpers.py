@@ -75,8 +75,6 @@ def get_smart_cover(base_query, series_name: str = None):
     if series_name and series_name.lower() in REVERSE_NUMBERING_SERIES:
         number_direction = sort_number.desc()
 
-    print(series_name)
-
     # PHASE 1: Strict "Best Cover" Search
     query = base_query.filter(is_plain) \
         .filter(Comic.number != '0') \
