@@ -61,12 +61,12 @@ async def get_token_hybrid(
     # 1. Try Header (FastAPI extracts this automatically via oauth2_scheme)
     if token_auth:
         return token_auth
-    logger.info("No token found")
+    logger.debug("No token found")
     # 2. Try Cookie (Fallback for HTML pages)
     cookie_token = request.cookies.get("access_token")
     if cookie_token:
         return cookie_token
-    logger.info("No cookie found")
+    logger.debug("No cookie found")
     # 3. Fail
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -85,13 +85,13 @@ async def get_token_optional(
     if token_auth:
         return token_auth
 
-    logger.info("get_token_optional: No token found")
+    logger.debug("get_token_optional: No token found")
 
     cookie_token = request.cookies.get("access_token")
     if cookie_token:
         return cookie_token
 
-    logger.info("get_token_optional: No cookie found")
+    logger.debug("get_token_optional: No cookie found")
 
     return None
 
