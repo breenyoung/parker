@@ -7,8 +7,8 @@ from pathlib import Path
 import re
 
 from app.core.comic_helpers import (get_format_sort_index, get_format_weight, get_age_rating_config,
-                                    get_comic_age_restriction, get_banned_comic_condition)
-from app.core.comic_helpers import get_format_sort_index, get_format_weight, REVERSE_NUMBERING_SERIES
+                                    get_comic_age_restriction, get_banned_comic_condition, REVERSE_NUMBERING_SERIES
+                                    )
 from app.api.deps import SessionDep, CurrentUser
 from app.models.comic import Comic, Volume
 from app.models.series import Series
@@ -245,8 +245,7 @@ async def get_comic_reader_init(comic_id: int,
         # If dates were missing/identical, we might have 1, 2, 3...
         # If it's a reverse series, we want 3, 2, 1.
         # Since we can't easily inject DESC into the tuple sort above for just one field,
-        # we check if we should reverse the whole list?
-        # NO. We only want to reverse if the series is reverse AND dates didn't do the job.
+        # We only want to reverse if the series is reverse AND dates didn't do the job.
         # Actually, for Countdown, Dates DO the job.
         # For a series WITHOUT dates that is reverse?
         if is_reverse:
