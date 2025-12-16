@@ -7,8 +7,8 @@ from pathlib import Path
 import re
 import random
 
-from app.core.comic_helpers import get_reading_time, get_format_sort_index, get_age_rating_config, get_comic_age_restriction
-from app.core.comic_helpers import get_reading_time, get_format_sort_index, REVERSE_NUMBERING_SERIES
+from app.core.comic_helpers import (get_reading_time, get_format_sort_index, REVERSE_NUMBERING_SERIES,
+                                    get_age_rating_config, get_comic_age_restriction)
 from app.api.deps import SessionDep, CurrentUser, ComicDep
 
 from app.models.comic import Comic, Volume
