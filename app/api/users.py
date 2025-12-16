@@ -12,7 +12,7 @@ from sqlalchemy import func, not_
 
 from app.api.deps import SessionDep, AdminUser, CurrentUser, PaginatedResponse, PaginationParams
 from app.config import settings
-from app.core.comic_helpers import get_reading_time, get_banned_comic_condition
+from app.core.comic_helpers import get_reading_time, get_banned_comic_condition, get_comic_age_restriction
 from app.core.security import verify_password, get_password_hash
 from app.models.comic import Comic, Volume
 from app.models.series import Series
@@ -96,6 +96,8 @@ async def get_user_dashboard(db: SessionDep, current_user: CurrentUser):
     opds_enabled = settings_svc.get("server.opds_enabled")
 
     # --- PREPARE SECURITY FILTER ---
+    # USE WHITELIST (Handles NULLs correctly)
+    safe_filter = get_comic_age_restriction(current_user)
     banned_condition = get_banned_comic_condition(current_user)
 
     # 1. Calculate Stats
@@ -109,8 +111,8 @@ async def get_user_dashboard(db: SessionDep, current_user: CurrentUser):
         ReadingProgress.completed == True
     )
 
-    if banned_condition is not None:
-        stats_query = stats_query.filter(not_(banned_condition))
+    if safe_filter is not None:
+        stats_query = stats_query.filter(safe_filter)
 
     stats_result = stats_query.first()
 
@@ -143,8 +145,8 @@ async def get_user_dashboard(db: SessionDep, current_user: CurrentUser):
         ReadingProgress.current_page > 0
     )
 
-    if banned_condition is not None:
-        recent_progress_query = recent_progress_query.filter(not_(banned_condition))
+    if safe_filter is not None:
+        recent_progress_query = recent_progress_query.filter(safe_filter)
 
     recent_progress = recent_progress_query.order_by(ReadingProgress.last_read_at.desc()).limit(6).all()
 
