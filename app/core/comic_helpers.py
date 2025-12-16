@@ -83,11 +83,7 @@ def get_comic_age_restriction(user, comic_model=Comic):
     Returns a SQLAlchemy BinaryExpression to filter COMIC rows directly.
     Used for: Search, Issue Lists, Cover Manifests.
     """
-    if not user or not user.max_age_rating:
-        return None
-
-    # Super users exempt
-    if user.is_superuser:
+    if not user or user.is_superuser or not user.max_age_rating:
         return None
 
     allowed_ratings, banned_ratings = get_age_rating_config(user)
@@ -116,11 +112,7 @@ def get_series_age_restriction(user, series_model=Series):
     Returns a SQLAlchemy BinaryExpression to filter SERIES rows.
     Implements 'Poison Pill' logic: Exclude series where ANY nested comic is banned.
     """
-    if not user or not user.max_age_rating:
-        return None
-
-    # Super users exempt
-    if user.is_superuser:
+    if not user or user.is_superuser or not user.max_age_rating:
         return None
 
     allowed_ratings, banned_ratings = get_age_rating_config(user)
@@ -148,7 +140,7 @@ def get_banned_comic_condition(user):
     Returns a SQLAlchemy BinaryExpression representing 'Banned Content' for this user.
     Used for filtering Lists and Collections.
     """
-    if not user.max_age_rating:
+    if not user or user.is_superuser or not user.max_age_rating:
         return None
 
     allowed_ratings, banned_ratings = get_age_rating_config(user)
@@ -180,7 +172,7 @@ def check_container_restriction(db, user, item_model, fk_column, container_id: i
         container_id: The ID to check
         type_name: "Collection" or "Reading list" (for error message)
     """
-    if not user.max_age_rating:
+    if not user or user.is_superuser or not user.max_age_rating:
         return
 
     banned_condition = get_banned_comic_condition(user)
