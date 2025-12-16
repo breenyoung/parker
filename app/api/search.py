@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, Query
 from typing import List, Annotated, Optional
+from sqlalchemy import not_
 from sqlalchemy.orm import Query as SqlQuery
 
 from app.api.deps import SessionDep, CurrentUser
@@ -99,15 +100,15 @@ def _apply_security_scopes(query: SqlQuery, model, user: CurrentUser, allowed_id
         elif model in [Collection, ReadingList, PullList]:
 
             # Filter out containers with banned content
-            # Logic: ~Container.items.any(Item.comic.has(Banned))
+            # Logic: not_(Container.items.any(Item.comic.has(Banned)))
             banned = get_banned_comic_condition(user)
 
             if model == Collection:
-                query = query.filter(~Collection.items.any(CollectionItem.comic.has(banned)))
+                query = query.filter(not_(Collection.items.any(CollectionItem.comic.has(banned))))
             elif model == ReadingList:
-                query = query.filter(~ReadingList.items.any(ReadingListItem.comic.has(banned)))
+                query = query.filter(not_(ReadingList.items.any(ReadingListItem.comic.has(banned))))
             elif model == PullList:
-                query = query.filter(~PullList.items.any(PullListItem.comic.has(banned)))
+                query = query.filter(not_(PullList.items.any(PullListItem.comic.has(banned))))
 
     return query
 

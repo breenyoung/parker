@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func
+from sqlalchemy import func, not_
 from typing import List, Optional
 from pydantic import BaseModel
 
@@ -30,7 +30,7 @@ def get_my_lists(db: SessionDep, current_user: CurrentUser):
     if banned_condition is not None:
         # Filter out Pull Lists that contain ANY banned comic
         query = query.filter(
-            ~PullList.items.any(PullListItem.comic.has(banned_condition))
+            not_(PullList.items.any(PullListItem.comic.has(banned_condition)))
         )
     # -----------------------
 

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import joinedload, aliased
-from sqlalchemy import func, select, and_, or_
+from sqlalchemy import func, select, and_, or_, not_
 
 from app.api.deps import SessionDep, CurrentUser
 from app.core.comic_helpers import (get_aggregated_metadata,
@@ -57,7 +57,7 @@ async def list_reading_lists(db: SessionDep, current_user: CurrentUser):
     if banned_condition is not None:
         # Filter out Reading Lists that contain ANY banned comic
         query = query.filter(
-            ~ReadingList.items.any(ReadingListItem.comic.has(banned_condition))
+            not_(ReadingList.items.any(ReadingListItem.comic.has(banned_condition)))
         )
     # ------------------------------
 

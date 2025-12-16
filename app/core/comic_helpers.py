@@ -131,9 +131,9 @@ def get_series_age_restriction(user, series_model=Series):
         )
 
     # 2. Filter Series that have ANY volume with ANY comic matching the banned condition
-    # We use ~ (NOT) and .any()
+    # We use not_() and .any()
     # "Show me Series where NOT(Has Any Banned Comic)"
-    return ~series_model.volumes.any(Volume.comics.any(banned_condition))
+    return not_(series_model.volumes.any(Volume.comics.any(banned_condition)))
 
 def get_banned_comic_condition(user):
     """

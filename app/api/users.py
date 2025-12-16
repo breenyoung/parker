@@ -130,7 +130,7 @@ async def get_user_dashboard(db: SessionDep, current_user: CurrentUser):
 
     if banned_condition is not None:
         pull_lists_query = pull_lists_query.filter(
-            ~PullList.items.any(PullListItem.comic.has(banned_condition))
+            not_(PullList.items.any(PullListItem.comic.has(banned_condition)))
         )
 
     pull_lists = pull_lists_query.limit(5).all()
