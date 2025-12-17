@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
-from sqlalchemy import func, case, Float, and_, literal
+from sqlalchemy import func, case, Float, and_, literal, not_
 from sqlalchemy.orm import joinedload, aliased
 from typing import List, Optional, Annotated
 from datetime import datetime, timezone
@@ -7,7 +7,7 @@ from collections import defaultdict
 
 from app.core.comic_helpers import (get_format_filters, get_smart_cover, get_reading_time,
                                     NON_PLAIN_FORMATS, REVERSE_NUMBERING_SERIES,
-                                    get_series_age_restriction)
+                                    get_series_age_restriction, get_banned_comic_condition)
 from app.api.deps import SessionDep, CurrentUser, AdminUser, SeriesDep
 from app.api.deps import PaginationParams, PaginatedResponse
 
@@ -156,10 +156,29 @@ async def get_series_detail(series: SeriesDep, db: SessionDep, current_user: Cur
     story_arcs_data = sorted(story_arcs_map.values(), key=lambda x: x['name'])
 
     # 4. Related Content (Lightweight)
-    related_collections = db.query(Collection).join(CollectionItem).join(Comic).filter(
-        Comic.volume_id.in_(volume_ids)).distinct().all()
-    related_reading_lists = db.query(ReadingList).join(ReadingListItem).join(Comic).filter(
-        Comic.volume_id.in_(volume_ids)).distinct().all()
+    related_collections_query = db.query(Collection).join(CollectionItem).join(Comic).filter(
+        Comic.volume_id.in_(volume_ids))
+
+    related_reading_lists_query = db.query(ReadingList).join(ReadingListItem).join(Comic).filter(
+        Comic.volume_id.in_(volume_ids))
+
+    # --- AGE RATING FILTER (Poison Pill) ---
+    banned_condition = get_banned_comic_condition(current_user)
+
+    if banned_condition is not None:
+
+        # Exclude containers that have ANY banned content (even from other series)
+        related_collections_query = related_collections_query.filter(
+            not_(Collection.items.any(CollectionItem.comic.has(banned_condition)))
+        )
+        related_reading_lists_query = related_reading_lists_query.filter(
+            not_(ReadingList.items.any(ReadingListItem.comic.has(banned_condition)))
+        )
+    # ---------------------------------------
+
+    related_collections = related_collections_query.distinct().all()
+    related_reading_lists = related_reading_lists_query.distinct().all()
+
 
     # 5. Metadata Details (OPTIMIZED: UNION ALL)
     # Instead of 5 separate heavy joins, we do one pass.
