@@ -110,8 +110,9 @@ def test_search_poison_pill(db, restricted_client, restricted_user):
     """
     data = setup_mixed_environment(db)
 
-    # FIX: Give user access to the library, otherwise they get 404/Empty for everything
-    lib = db.query(Library).get(data['lib_id'])
+    # FIX: Use db.get() instead of db.query().get() to avoid LegacyAPIWarning
+    lib = db.get(Library, data['lib_id'])
+
     restricted_user.accessible_libraries.append(lib)
     db.commit()
 
@@ -132,8 +133,8 @@ def test_home_random_poison_pill(db, restricted_client, restricted_user):
     """
     data = setup_mixed_environment(db)
 
-    # FIX: Grant Access
-    lib = db.query(Library).get(data['lib_id'])
+    lib = db.get(Library, data['lib_id'])
+
     restricted_user.accessible_libraries.append(lib)
     db.commit()
 
@@ -153,8 +154,8 @@ def test_cover_manifest_poison_pill(db, restricted_client, restricted_user):
     """
     data = setup_mixed_environment(db)
 
-    # FIX: Grant Access
-    lib = db.query(Library).get(data['lib_id'])
+    lib = db.get(Library, data['lib_id'])
+
     restricted_user.accessible_libraries.append(lib)
     db.commit()
 
@@ -178,8 +179,8 @@ def test_direct_access_row_level_security(db, restricted_client, restricted_user
     """
     data = setup_mixed_environment(db)
 
-    # FIX: Grant Access (RLS check happens BEFORE Age check)
-    lib = db.query(Library).get(data['lib_id'])
+    lib = db.get(Library, data['lib_id'])
+
     restricted_user.accessible_libraries.append(lib)
     db.commit()
 
@@ -203,8 +204,8 @@ def test_reader_init_navigation(db, restricted_client, restricted_user):
     """
     data = setup_mixed_environment(db)
 
-    # FIX: Grant Access
-    lib = db.query(Library).get(data['lib_id'])
+    lib = db.get(Library, data['lib_id'])
+
     restricted_user.accessible_libraries.append(lib)
     db.commit()
 
