@@ -12,11 +12,7 @@ from app.models.credits import Person, ComicCredit
 from app.models.collection import Collection, CollectionItem
 from app.models.reading_list import ReadingList, ReadingListItem
 from app.models.pull_list import PullList, PullListItem
-from app.core.comic_helpers import (
-    get_comic_age_restriction,
-    get_series_age_restriction,
-    get_banned_comic_condition
-)
+from app.core.comic_helpers import get_series_age_restriction, get_banned_comic_condition
 
 router = APIRouter()
 
