@@ -73,9 +73,11 @@ def _apply_security_scopes(query: SqlQuery, model, user: CurrentUser, allowed_id
     # 2. Apply Age Restrictions
     if user.max_age_rating:
 
-        # A. Comic Direct Filtering
+        # A. Comic Direct Filtering (e.g. searching Publishers, Formats)
         if model == Comic:
-            age_filter = get_comic_age_restriction(user)
+            # Switch to Poison Pill.
+            # Don't suggest Publishers/Formats that only exist in Banned Series.
+            age_filter = get_series_age_restriction(user)
             if age_filter is not None:
                 query = query.filter(age_filter)
 
@@ -89,10 +91,10 @@ def _apply_security_scopes(query: SqlQuery, model, user: CurrentUser, allowed_id
         # We ensure they only appear if connected to an ALLOWED comic
         elif model in [Character, Team, Location, Person]:
 
-            # We assume the join to Comic exists (handled by Library RLS logic or explicit joins)
-            # If not joined yet, we must join.
-            # Note: The Library RLS block above usually performs the join.
-            age_filter = get_comic_age_restriction(user, comic_model=Comic)
+            # Switch to Poison Pill.
+            # Don't suggest Characters/Creators that only exist in Banned Series.
+            # Since we joined Series above (in RLS block), this filter works automatically.
+            age_filter = get_series_age_restriction(user, comic_model=Comic)
             if age_filter is not None:
                 query = query.filter(age_filter)
 
