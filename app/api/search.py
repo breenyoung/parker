@@ -90,7 +90,7 @@ def _apply_security_scopes(query: SqlQuery, model, user: CurrentUser, allowed_id
             # Switch to Poison Pill.
             # Don't suggest Characters/Creators that only exist in Banned Series.
             # Since we joined Series above (in RLS block), this filter works automatically.
-            age_filter = get_series_age_restriction(user, comic_model=Comic)
+            age_filter = get_series_age_restriction(user)
             if age_filter is not None:
                 query = query.filter(age_filter)
 
