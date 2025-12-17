@@ -1,3 +1,5 @@
+import logging
+from functools import lru_cache
 from sqlalchemy import func, or_, not_, case, cast, Float
 from typing import Any
 from fastapi import HTTPException
@@ -8,6 +10,8 @@ from app.models.comic import Comic, Volume
 from app.models.series import Series
 from app.models.tags import Character, Team, Location, Genre
 from app.models.credits import Person, ComicCredit
+
+logger = logging.getLogger(__name__)
 
 # Titles that number backwards (Countdown) or count down to 0 (Zero Hour)
 # where the Highest Number is actually the Debut/Cover.
@@ -52,38 +56,46 @@ AGE_RATING_HIERARCHY = [
     "X18+"
 ]
 
-def get_age_rating_config(user) -> tuple[None, None] | tuple[list[str | Any], list[str | Any]]:
-    """
-    Calculates the 'safe' and 'unsafe' lists based on user config.
-    Returns:
-        allowed_ratings (list): Strings that are explicitly safe.
-        banned_ratings (list): Strings that are explicitly unsafe.
-        :param user:
-        :return:
-    """
-    if not user or not user.max_age_rating:
-        return None, None  # No restrictions
 
+@lru_cache(maxsize=128)
+def _get_cached_rating_lists(max_age_rating: str) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """
+    Internal cached worker.
+    Input is a string (hashable), so lru_cache works perfectly.
+    Returns TUPLES (Immutable) to prevent cache corruption.
+    """
     try:
-        max_index = AGE_RATING_HIERARCHY.index(user.max_age_rating)
+        max_index = AGE_RATING_HIERARCHY.index(max_age_rating)
+        logger.debug(f"Calculated age config for rating: {max_age_rating}")
     except ValueError:
-        # If the user's rating string isn't in our list, assume strict safety (index 0)
         max_index = -1
 
-    # Allowed: Everything up to and including the max index
-    allowed_ratings = AGE_RATING_HIERARCHY[:max_index + 1]
+    allowed = tuple(AGE_RATING_HIERARCHY[:max_index + 1])
+    banned = tuple(AGE_RATING_HIERARCHY[max_index + 1:])
 
-    # Banned: Everything strictly after
-    banned_ratings = AGE_RATING_HIERARCHY[max_index + 1:]
+    return allowed, banned
 
-    return allowed_ratings, banned_ratings
+# Return type is now Tuple of Tuples (Immutable)
+def get_age_rating_config(user) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """
+    Public wrapper. Extracts the string from the user object and calls the cache.
+    """
+    if not user or user.is_superuser or not user.max_age_rating:
+        logger.debug(f"User {user.username} has no age rating config or is superuser")
+        return None, None
+
+    # Pass ONLY the immutable string to the cached function
+    return _get_cached_rating_lists(user.max_age_rating)
+
+# --------------------
+
 
 def get_comic_age_restriction(user, comic_model=Comic):
     """
     Returns a SQLAlchemy BinaryExpression to filter COMIC rows directly.
     Used for: Search, Issue Lists, Cover Manifests.
     """
-    if not user or not user.max_age_rating:
+    if not user or user.is_superuser or not user.max_age_rating:
         return None
 
     allowed_ratings, banned_ratings = get_age_rating_config(user)
@@ -112,7 +124,7 @@ def get_series_age_restriction(user, series_model=Series):
     Returns a SQLAlchemy BinaryExpression to filter SERIES rows.
     Implements 'Poison Pill' logic: Exclude series where ANY nested comic is banned.
     """
-    if not user or not user.max_age_rating:
+    if not user or user.is_superuser or not user.max_age_rating:
         return None
 
     allowed_ratings, banned_ratings = get_age_rating_config(user)
@@ -131,16 +143,16 @@ def get_series_age_restriction(user, series_model=Series):
         )
 
     # 2. Filter Series that have ANY volume with ANY comic matching the banned condition
-    # We use ~ (NOT) and .any()
+    # We use not_() and .any()
     # "Show me Series where NOT(Has Any Banned Comic)"
-    return ~series_model.volumes.any(Volume.comics.any(banned_condition))
+    return not_(series_model.volumes.any(Volume.comics.any(banned_condition)))
 
 def get_banned_comic_condition(user):
     """
     Returns a SQLAlchemy BinaryExpression representing 'Banned Content' for this user.
     Used for filtering Lists and Collections.
     """
-    if not user.max_age_rating:
+    if not user or user.is_superuser or not user.max_age_rating:
         return None
 
     allowed_ratings, banned_ratings = get_age_rating_config(user)
@@ -172,10 +184,12 @@ def check_container_restriction(db, user, item_model, fk_column, container_id: i
         container_id: The ID to check
         type_name: "Collection" or "Reading list" (for error message)
     """
-    if not user.max_age_rating:
+    if not user or user.is_superuser or not user.max_age_rating:
         return
 
     banned_condition = get_banned_comic_condition(user)
+    if banned_condition is None:
+        return
 
     # Check if ANY item in this container matches the ban
     has_banned = db.query(item_model.id).join(Comic)\

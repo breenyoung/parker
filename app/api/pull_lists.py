@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func
+from sqlalchemy import func, not_
 from typing import List, Optional
 from pydantic import BaseModel
 
-from app.core.comic_helpers import get_aggregated_metadata
+from app.core.comic_helpers import (get_aggregated_metadata, get_series_age_restriction,
+                                    check_container_restriction, get_banned_comic_condition)
 from app.api.deps import SessionDep, CurrentUser
 from app.models.pull_list import PullList, PullListItem
 from app.models.comic import Comic
@@ -22,8 +23,12 @@ router = APIRouter()
 @router.get("/", name="list")
 def get_my_lists(db: SessionDep, current_user: CurrentUser):
     """List all pull lists for the current user."""
-    return db.query(PullList).filter(PullList.user_id == current_user.id).order_by(PullList.name).all()
 
+    # Don't hide the list just because of one bad apple.
+    # We return all lists, and filter the items inside the detail view.
+    query = db.query(PullList).filter(PullList.user_id == current_user.id)
+
+    return query.order_by(PullList.name).all()
 
 @router.post("/", name="create")
 def create_list(list_data: PullListCreate, db: SessionDep, current_user: CurrentUser):
@@ -44,11 +49,11 @@ def get_list_details(list_id: int, db: SessionDep, current_user: CurrentUser):
     """
     Get list details + items sorted by user preference.
     OPTIMIZED: Uses joinedload to prevent N+1 queries on items loop.
+    SECURED: Filters out banned items instead of blocking the whole list.
     """
-    # 1. Fetch List with Eager Loading of Hierarchy
-    plist = db.query(PullList).options(
-        joinedload(PullList.items).joinedload(PullListItem.comic).joinedload(Comic.volume).joinedload(Volume.series)
-    ).filter(
+
+    # 1. Fetch List Metadata (No items joined yet)
+    plist = db.query(PullList).filter(
         PullList.id == list_id,
         PullList.user_id == current_user.id
     ).first()
@@ -56,12 +61,29 @@ def get_list_details(list_id: int, db: SessionDep, current_user: CurrentUser):
     if not plist:
         raise HTTPException(status_code=404, detail="Pull list not found")
 
+    # 2. Fetch Items (Secure Item Filter)
+    # We query PullListItem directly. This allows us to:
+    # A. Join Comic/Series to check Age Ratings
+    # B. Filter OUT the banned items via SQL
+    # C. Sort via SQL (Efficient)
+    query = db.query(PullListItem).join(Comic).join(Volume).join(Series) \
+        .options(joinedload(PullListItem.comic).joinedload(Comic.volume).joinedload(Volume.series)) \
+        .filter(PullListItem.pull_list_id == list_id)
+
+    # Apply Series Poison Pill
+    # This hides:
+    # 1. Explicit Comics
+    # 2. "Safe" Comics that belong to an Explicit Series
+    series_filter = get_series_age_restriction(current_user)
+    if series_filter is not None:
+        query = query.filter(series_filter)
+
+    items = query.order_by(PullListItem.sort_order).all()
+
     # 2. Build formatted item list (In-Memory, efficient now)
     items_data = []
-    # Sort items in Python since we eager loaded them (usually preserve DB order, but explicit sort is safe)
-    sorted_items = sorted(plist.items, key=lambda x: x.sort_order)
 
-    for item in sorted_items:
+    for item in items:
         if not item.comic: continue
 
         items_data.append({

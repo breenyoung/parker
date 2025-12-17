@@ -1,11 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
-from sqlalchemy import func, case, Float, and_, literal
+from sqlalchemy import func, case, Float, and_, literal, not_
 from sqlalchemy.orm import joinedload, aliased
 from typing import List, Optional, Annotated
 from datetime import datetime, timezone
 from collections import defaultdict
 
-from app.core.comic_helpers import get_format_filters, get_smart_cover, get_reading_time, NON_PLAIN_FORMATS, REVERSE_NUMBERING_SERIES
+from app.core.comic_helpers import (get_format_filters, get_smart_cover, get_reading_time,
+                                    NON_PLAIN_FORMATS, REVERSE_NUMBERING_SERIES,
+                                    get_series_age_restriction, get_banned_comic_condition)
 from app.api.deps import SessionDep, CurrentUser, AdminUser, SeriesDep
 from app.api.deps import PaginationParams, PaginatedResponse
 
@@ -92,6 +94,18 @@ async def get_series_detail(series: SeriesDep, db: SessionDep, current_user: Cur
     2. Batch fetches volume stats.
     """
 
+    # 0. Security Check: Age Rating "Poison Pill"
+    # Since we are fetching a specific ID, we should check if this Series is allowed.
+    # Note: Optimization - We could skip this query if user has no restrictions.
+    age_filter = get_series_age_restriction(current_user)
+    if age_filter is not None:
+        # Check if this specific series passes the filter
+        # We query for this ID + the Filter. If None, 403.
+        is_allowed = db.query(Series.id).filter(Series.id == series.id, age_filter).first()
+        if not is_allowed:
+            raise HTTPException(status_code=403, detail="Content restricted by age rating")
+
+
     # 1. Get Volumes (sorted by volume_number)
     volumes = db.query(Volume).filter(Volume.series_id == series.id).order_by(Volume.volume_number).all()
     volume_ids = [v.id for v in volumes]
@@ -142,10 +156,29 @@ async def get_series_detail(series: SeriesDep, db: SessionDep, current_user: Cur
     story_arcs_data = sorted(story_arcs_map.values(), key=lambda x: x['name'])
 
     # 4. Related Content (Lightweight)
-    related_collections = db.query(Collection).join(CollectionItem).join(Comic).filter(
-        Comic.volume_id.in_(volume_ids)).distinct().all()
-    related_reading_lists = db.query(ReadingList).join(ReadingListItem).join(Comic).filter(
-        Comic.volume_id.in_(volume_ids)).distinct().all()
+    related_collections_query = db.query(Collection).join(CollectionItem).join(Comic).filter(
+        Comic.volume_id.in_(volume_ids))
+
+    related_reading_lists_query = db.query(ReadingList).join(ReadingListItem).join(Comic).filter(
+        Comic.volume_id.in_(volume_ids))
+
+    # --- AGE RATING FILTER (Poison Pill) ---
+    banned_condition = get_banned_comic_condition(current_user)
+
+    if banned_condition is not None:
+
+        # Exclude containers that have ANY banned content (even from other series)
+        related_collections_query = related_collections_query.filter(
+            not_(Collection.items.any(CollectionItem.comic.has(banned_condition)))
+        )
+        related_reading_lists_query = related_reading_lists_query.filter(
+            not_(ReadingList.items.any(ReadingListItem.comic.has(banned_condition)))
+        )
+    # ---------------------------------------
+
+    related_collections = related_collections_query.distinct().all()
+    related_reading_lists = related_reading_lists_query.distinct().all()
+
 
     # 5. Metadata Details (OPTIMIZED: UNION ALL)
     # Instead of 5 separate heavy joins, we do one pass.
@@ -339,6 +372,17 @@ async def get_series_issues(
         (ReadingProgress.comic_id == Comic.id) & (ReadingProgress.user_id == current_user.id)
     ).join(Volume).join(Series).filter(Series.id == series_id)
 
+    # --- AGE RATING FILTER ---
+    # TODO: If partial views are ever implemented we can uncomment this check
+    # Even if the Series is allowed, we double-check individual issues (defensive coding)
+    # or just rely on the Series check?
+    # Logic: If the series is allowed, technically all comics are allowed (Poison Pill).
+    # BUT: If we change logic later to "Partial View", this line saves us.
+    #age_filter = get_comic_age_restriction(current_user)
+    #if age_filter is not None:
+    #    query = query.filter(age_filter)
+    # -------------------------
+
 
     # Format filters
     is_plain, is_annual, is_special = get_format_filters()
@@ -390,6 +434,23 @@ async def list_series(
         sort_desc: bool = False
 ):
     query = db.query(Series)
+
+    # 0. Apply Security Filter (unless Superuser)
+    if not current_user.is_superuser:
+        allowed_ids = [lib.id for lib in current_user.accessible_libraries]
+        query = query.filter(Series.library_id.in_(allowed_ids))
+
+        # TODO Only normal users for now, superusers don't get age rating applied
+        # --- AGE RATING FILTER (Only for non-superusers) ---
+        # Usually admins want to see everything, but if an admin sets a restriction on themselves for testing...
+        # Let's apply it based on the user object, regardless of superuser status,
+        # UNLESS requirement is that Admins bypass age checks.
+        # Standard: Admins bypass permissions, but usually respect explicit filters.
+        age_filter = get_series_age_restriction(current_user)
+        if age_filter is not None:
+            query = query.filter(age_filter)
+        # -------------------------
+
 
     # 1. Apply Security Filter (unless Superuser)
     if not current_user.is_superuser:
@@ -499,6 +560,13 @@ async def get_series_recommendations(series_id: int, db: SessionDep, user: Curre
     if not user.is_superuser:
         allowed_ids = [l.id for l in user.accessible_libraries]
         visible_series_query = visible_series_query.filter(Series.library_id.in_(allowed_ids))
+
+        # --- AGE RATING FILTER (normal users only) ---
+        age_filter = get_series_age_restriction(user)
+        if age_filter is not None:
+            visible_series_query = visible_series_query.filter(age_filter)
+        # -------------------------
+
 
     # We execute this subquery in the filters below using .in_(...)
     # OR we can join, but .in_ is often cleaner for "Security Filter" logic.

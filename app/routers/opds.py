@@ -5,9 +5,15 @@ from sqlalchemy.orm import joinedload
 from datetime import datetime, timezone
 
 from app.api.opds_deps import OPDSUser, SessionDep
+from app.models import ComicCredit
 from app.models.library import Library
 from app.models.series import Series
 from app.models.comic import Comic, Volume
+from app.core.comic_helpers import (
+    get_series_age_restriction,
+    get_comic_age_restriction,
+    get_age_rating_config
+)
 
 templates = Jinja2Templates(directory="app/templates")
 router = APIRouter(prefix="/opds", tags=["opds"])
@@ -57,6 +63,7 @@ async def opds_root(request: Request, user: OPDSUser, db: SessionDep):
 @router.get("/libraries/{library_id}", name="library")
 async def opds_library(library_id: int, request: Request, user: OPDSUser, db: SessionDep):
     # Security check using your existing accessible_libraries logic
+
     if not user.is_superuser:
         allowed_ids = [l.id for l in user.accessible_libraries]
         if library_id not in allowed_ids:
@@ -65,7 +72,15 @@ async def opds_library(library_id: int, request: Request, user: OPDSUser, db: Se
     library = db.query(Library).filter(Library.id == library_id).first()
 
     # Fetch series
-    series_list = db.query(Series).filter(Series.library_id == library_id).order_by(Series.name).all()
+    query = db.query(Series).filter(Series.library_id == library_id)
+
+    # --- AGE RESTRICTION (Poison Pill) ---
+    age_filter = get_series_age_restriction(user)
+    if age_filter is not None:
+        query = query.filter(age_filter)
+    # -------------------------------------
+
+    series_list = query.order_by(Series.name).all()
 
     entries = []
     for s in series_list:
@@ -93,26 +108,42 @@ async def opds_library(library_id: int, request: Request, user: OPDSUser, db: Se
 
 @router.get("/series/{series_id}", name="series")
 async def opds_series(series_id: int, request: Request, user: OPDSUser, db: SessionDep):
-    # ... (Previous Security Check) ...
+
+    # Security check for Series existence and Library Access would ideally happen here too
+    # Assuming 'get_series_age_restriction' at library level helps, but let's be strict.
 
     # Fetch comics with RICH metadata
-    comics = (
+    query = (
         db.query(Comic)
         .join(Volume)
         .join(Series) # Explicit join for filtering
         .filter(Volume.series_id == series_id)
-        .options(
-            joinedload(Comic.credits).joinedload("person"), # Load credits + person names
+    )
+
+    # --- AGE RESTRICTION (Filter Comics) ---
+    age_filter = get_comic_age_restriction(user)
+    if age_filter is not None:
+        query = query.filter(age_filter)
+    # ---------------------------------------
+
+    comics = query.options(
+            joinedload(Comic.credits).joinedload(ComicCredit.person), # Load credits + person names
             joinedload(Comic.genres),    # Load Genres
             joinedload(Comic.volume).joinedload(Volume.series) # Load Series Name
-        )
-        .order_by(Volume.volume_number, Comic.number)
-        .all()
-    )
+        ).order_by(Volume.volume_number, Comic.number).all()
+
+    # If all comics are restricted, handle empty list gracefully
+    feed_title = "Series"
+    if comics:
+        feed_title = comics[0].volume.series.name
+    else:
+        # Fallback fetch name if empty (optional)
+        s = db.query(Series.name).filter(Series.id == series_id).scalar()
+        if s: feed_title = s
 
     return render_xml(request, {
         "feed_id": f"urn:parker:series:{series_id}",
-        "feed_title": comics[0].volume.series.name if comics else "Series",
+        "feed_title": feed_title,
         "updated_at": datetime.now(timezone.utc),
         "entries": [],
         "books": comics
@@ -133,6 +164,23 @@ async def opds_download(comic_id: int, user: OPDSUser, db: SessionDep):
     if not user.is_superuser:
         if comic.volume.series.library_id not in [l.id for l in user.accessible_libraries]:
             raise HTTPException(status_code=404)
+
+    # 2. Age Rating Check
+    if not user.is_superuser and user.max_age_rating:
+
+        allowed, banned = get_age_rating_config(user)
+
+        is_restricted = False
+
+        if comic.age_rating in banned: is_restricted = True
+
+        if not user.allow_unknown_age_ratings:
+            if not comic.age_rating or comic.age_rating == "" or comic.age_rating.lower() == "unknown":
+                is_restricted = True
+
+        if is_restricted:
+            raise HTTPException(status_code=403, detail="Age Restricted")
+
 
     # Clean filename for headers (remove non-ascii if necessary, but modern browsers/apps handle utf-8)
     export_name = f"{comic.series_group or 'Comic'} - {comic.title}.cbz"

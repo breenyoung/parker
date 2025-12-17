@@ -5,7 +5,9 @@ from sqlalchemy.orm import joinedload
 from typing import List, Annotated, Optional, Literal
 from pathlib import Path
 import re
+import logging
 
+from app.core.comic_helpers import (get_age_rating_config, get_comic_age_restriction)
 from app.core.comic_helpers import get_format_sort_index, get_format_weight, REVERSE_NUMBERING_SERIES
 from app.api.deps import SessionDep, CurrentUser
 from app.models.comic import Comic, Volume
@@ -16,6 +18,8 @@ from app.models.reading_progress import ReadingProgress
 from app.models.pull_list import PullList, PullListItem
 from app.models.reading_list import ReadingList, ReadingListItem
 from app.models.collection import Collection, CollectionItem
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -41,6 +45,7 @@ async def get_comic_reader_init(comic_id: int,
     Get initialization data for the reader.
     OPTIMIZED: Uses tuple queries for sibling sorting instead of full object fetches.
     Now handles Reverse Numbering (Countdown) and Date Sorting (Zero Hour).
+    SECURED: Prevents reading restricted comics and navigation to restricted neighbors.
     """
     # 1. Fetch Comic with Series/Volume loaded (Avoids N+1 later)
     comic = db.query(Comic).options(
@@ -49,6 +54,32 @@ async def get_comic_reader_init(comic_id: int,
 
     if not comic:
         raise HTTPException(status_code=404, detail="Comic not found")
+
+    if not current_user.is_superuser:
+
+        allowed_libs = [l.id for l in current_user.accessible_libraries]
+        if comic.volume.series.library_id not in allowed_libs:
+            raise HTTPException(status_code=404, detail="Comic not found")
+
+        # 2. Age Rating: Check Target
+        if current_user.max_age_rating:
+
+            is_restricted = False
+            allowed, banned = get_age_rating_config(current_user)
+
+            # Explicit Ban
+            if comic.age_rating in banned:
+                is_restricted = True
+
+            # Unknown Ban
+            if not current_user.allow_unknown_age_ratings:
+                if not comic.age_rating or comic.age_rating == "" or comic.age_rating.lower() == "unknown":
+                    is_restricted = True
+
+            if is_restricted:
+                raise HTTPException(status_code=403, detail="Content restricted by age rating")
+        # -------------------------------------
+
 
     # Default: No Context (Standard Volume Browsing)
     prev_id = None
@@ -62,6 +93,12 @@ async def get_comic_reader_init(comic_id: int,
     sort_day = case((or_(Comic.day == None, Comic.day == -1), 99), else_=Comic.day)
     sort_number = cast(Comic.number, Float)
 
+    # --- PREPARE NEIGHBOR FILTER ---
+    # FIX: Use Whitelist (get_comic_age_restriction) instead of Negated Blacklist.
+    # This ensures Unrated (NULL) comics are included correctly.
+    safe_filter = get_comic_age_restriction(current_user)
+
+    logger.debug(f"Context type for reader: {context_type}")
 
     # --- STRATEGY PATTERN ---
     if context_type == "pull_list" and context_id:
@@ -70,9 +107,15 @@ async def get_comic_reader_init(comic_id: int,
         context_label = db.query(PullList.name).filter(PullList.id == context_id).scalar()
 
         # Query items in THIS specific list, ordered by sort_order
-        items = db.query(PullListItem.comic_id).filter(
+        #Join Comic to avoid Cartesian Product
+        query = db.query(PullListItem.comic_id).join(Comic, PullListItem.comic_id == Comic.id).filter(
             PullListItem.pull_list_id == context_id
-        ).order_by(PullListItem.sort_order).all()
+        )
+
+        if safe_filter is not None:
+            query = query.filter(safe_filter)
+
+        items = query.order_by(PullListItem.sort_order).all()
 
         # Flatten tuple list [(1,), (2,)] -> [1, 2]
         ids = [i[0] for i in items]
@@ -82,9 +125,15 @@ async def get_comic_reader_init(comic_id: int,
 
         context_label = db.query(ReadingList.name).filter(ReadingList.id == context_id).scalar()
 
-        items = db.query(ReadingListItem.comic_id).filter(
-            ReadingListItem.reading_list_id == context_id
-        ).order_by(ReadingListItem.position).all()
+        # FIX: Always Join Comic
+        query = db.query(ReadingListItem.comic_id) \
+            .join(Comic, ReadingListItem.comic_id == Comic.id) \
+            .filter(ReadingListItem.reading_list_id == context_id)
+
+        if safe_filter is not None:
+            query = query.filter(safe_filter)
+
+        items = query.order_by(ReadingListItem.position).all()
 
         ids = [i[0] for i in items]
 
@@ -95,12 +144,16 @@ async def get_comic_reader_init(comic_id: int,
 
         # Collections usually don't have explicit order
         # Simplified Sort: Year -> Series -> Number
-        items = db.query(CollectionItem.comic_id) \
+        query = db.query(CollectionItem.comic_id) \
             .join(Comic, CollectionItem.comic_id == Comic.id) \
             .join(Volume, Comic.volume_id == Volume.id) \
             .join(Series, Volume.series_id == Series.id) \
-            .filter(CollectionItem.collection_id == context_id) \
-            .order_by(
+            .filter(CollectionItem.collection_id == context_id)
+
+        if safe_filter is not None:
+            query = query.filter(safe_filter)
+
+        items = query.order_by(
             Comic.year.asc(),
             Series.name.asc(),
             func.cast(Comic.number, Float)
@@ -110,6 +163,7 @@ async def get_comic_reader_init(comic_id: int,
 
     elif context_type == "series" and context_id:
         # 4. Series Strategy
+
         context_label = db.query(Series.name).filter(Series.id == context_id).scalar()
 
         # Gimmick Detection
@@ -119,11 +173,17 @@ async def get_comic_reader_init(comic_id: int,
 
         # Use centralized helper
         format_weight = get_format_sort_index()
+
         # Series strategy is already optimized (fetches IDs only via ORM selection)
         # But let's be explicit to avoid object overhead:
-        items = db.query(Comic.id).join(Volume).filter(
+        query = db.query(Comic.id).join(Volume).filter(
             Volume.series_id == context_id
-        ).order_by(
+        )
+
+        if safe_filter is not None:
+            query = query.filter(safe_filter)
+
+        items = query.order_by(
             Volume.volume_number,
             format_weight,  # Plain(1) -> Annual(2) -> Special(3)
             sort_year.asc(),
@@ -131,6 +191,7 @@ async def get_comic_reader_init(comic_id: int,
             sort_day.asc(),
             number_direction
         ).all()
+
         ids = [i[0] for i in items]
 
     else:
@@ -147,12 +208,17 @@ async def get_comic_reader_init(comic_id: int,
 
         # Query only what we need for the Python sort
         # Fetch Tuples: (id, number, format, year, month, day)
-        siblings = db.query(
+        query = db.query(
             Comic.id, Comic.number, Comic.format,
             Comic.year, Comic.month, Comic.day
         ).filter(
             Comic.volume_id == comic.volume_id
-        ).all()
+        )
+
+        if safe_filter is not None:
+            query = query.filter(safe_filter)
+
+        siblings = query.all()
 
         # Robust Python Sort Logic
         # Priority: Format -> Date -> Number

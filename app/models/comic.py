@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Text, DateTime, Float, JSON
+from sqlalchemy import Column, Integer, String, ForeignKey, Text, DateTime, Float, JSON, Index
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 from app.database import Base
@@ -21,6 +21,10 @@ class Volume(Base):
 class Comic(Base):
     __tablename__ = "comics"
 
+    __table_args__ = (
+        Index('idx_comic_volume_age_rating', 'volume_id', 'age_rating'),
+    )
+
     id = Column(Integer, primary_key=True, index=True)
     volume_id = Column(Integer, ForeignKey("volumes.id"))
 
@@ -40,7 +44,7 @@ class Comic(Base):
     day = Column(Integer)
     web = Column(String)
     notes = Column(Text)
-    age_rating = Column(String, nullable=True) # e.g. "Everyone"
+    age_rating = Column(String, nullable=True, index=True) # e.g. "Everyone"
     language_iso = Column(String, nullable=True)  # e.g. "en", "jp"
     community_rating = Column(Float, nullable=True, default=None)
 
