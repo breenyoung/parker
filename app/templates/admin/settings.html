@@ -2,7 +2,12 @@
 
 {% block content %}
 <div class="container mx-auto px-4 py-8" x-data="settingsManager()">
-    <h1 class="text-3xl font-bold mb-8 text-white">System Settings</h1>
+
+    {% from "partials/admin_header.html" import admin_header %}
+    {{ admin_header(
+        title="Settings",
+        description="Adjust Parker application settings."
+    ) }}
 
     <template x-for="(groupSettings, category) in settings" :key="category">
         <div class="mb-8 bg-gray-800 rounded-lg p-6 border border-gray-700">

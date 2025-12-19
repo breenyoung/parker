@@ -4,13 +4,16 @@
 
 {% block content %}
 <div class="max-w-6xl mx-auto" x-data="userManager()">
-    
-    <div class="flex justify-between items-center mb-6">
-        <h1 class="text-3xl font-bold">User Management</h1>
-        <button @click="openAddModal()" class="btn-primary">
-            + Add User
-        </button>
-    </div>
+
+
+    {% from "partials/admin_header.html" import admin_header %}
+    {{ admin_header(
+        title="Users",
+        description="Manage your users and their permissions.",
+        action_label="+ Add User",
+            action_func="openAddModal()"
+    ) }}
+
 
     <div class="bg-gray-800 rounded-lg overflow-hidden shadow-lg border border-gray-700">
         <table class="w-full text-left">

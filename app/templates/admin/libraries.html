@@ -4,13 +4,14 @@
 
 {% block content %}
 <div class="max-w-6xl mx-auto" x-data="libraryManager()">
-    
-    <div class="flex justify-between items-center mb-6">
-        <h1 class="text-3xl font-bold">Library Management</h1>
-        <button x-on:click="openAddModal()" class="btn-primary">
-            + Add Library
-        </button>
-    </div>
+
+    {% from "partials/admin_header.html" import admin_header %}
+    {{ admin_header(
+        title="Libraries",
+        description="Manage your comic libraries.",
+        action_label="+ Add Library",
+            action_func="openAddModal()"
+    ) }}
 
     <div class="bg-gray-800 rounded-lg overflow-hidden shadow-lg border border-gray-700">
         <table class="w-full text-left">

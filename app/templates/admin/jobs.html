@@ -3,16 +3,18 @@
 {% block title %}Job History - Admin{% endblock %}
 
 {% block content %}
+
+
+
 <div class="max-w-6xl mx-auto" x-data="jobHistory">
-    <div class="flex justify-between items-center mb-6">
-        <h1 class="text-3xl font-bold text-white">System Job History</h1>
-        <button 
-            x-on:click="loadJobs()"
-            class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-white flex items-center gap-2"
-        >
-            <span :class="{'animate-spin': loading}">↻</span> Refresh
-        </button>
-    </div>
+
+    {% from "partials/admin_header.html" import admin_header %}
+    {{ admin_header(
+        title="Job History",
+        description="",
+        refresh_func="loadJobs()",
+        loading_var="loading"
+    ) }}
 
     <div class="bg-gray-800 rounded-xl overflow-hidden shadow-lg border border-gray-700">
         <div class="overflow-x-auto">

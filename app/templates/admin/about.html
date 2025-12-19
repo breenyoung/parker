@@ -4,12 +4,12 @@
 
 {% block content %}
 <div class="max-w-4xl mx-auto">
-    
-    <div class="flex items-center space-x-4 mb-8">
-        <a :href="window.parker.route('admin.dashboard')" class="text-gray-400 hover:text-white transition-colors">
-            ← Back to Dashboard
-        </a>
-    </div>
+
+    {% from "partials/admin_header.html" import admin_header %}
+    {{ admin_header(
+        title="About",
+        description="System information."
+    ) }}
 
     <div class="bg-gray-800 border border-gray-700 rounded-lg overflow-hidden shadow-xl">
         
