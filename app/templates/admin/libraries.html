@@ -211,9 +211,15 @@ function libraryManager() {
         async triggerScan(lib, force) {
             const confirmMsg = force
                 ? `Force full re-scan of "${lib.name}"? This may take a while.`
-                : `Scan "${lib.name}" for new files?`;
+                : `Scan "${lib.name}" for new / updated files?`;
 
-            if (!confirm(confirmMsg)) return;
+            const confirmed = await window.parker.dialog.confirm(
+                `Scan Library`,
+                confirmMsg,
+                { isDestructive: false, confirmText: 'Scan' }
+            );
+
+            if (!confirmed) return;
 
             lib.is_scanning = true; // Optimistic update
 
@@ -222,8 +228,8 @@ function libraryManager() {
                 // We rely on the pollInterval to update the status from here
                 window.parker.showToast("Scan started", 'info');
             } else {
-                alert("Failed to start scan");
                 lib.is_scanning = false;
+                await window.parker.dialog.alert('Error', 'Failed to start scan');
             }
         },
 
