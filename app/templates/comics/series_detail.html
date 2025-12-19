@@ -656,7 +656,14 @@ function seriesDetail() {
         },
 
         async regenerateThumbnails() {
-            if(!confirm("Admin: Regenerate all thumbnails for this series? This may take a moment.")) return;
+
+            const confirmed = await window.parker.dialog.confirm(
+                "Regenerate Thumbnails?",
+                "Regenerate all thumbnails for this series? This may take a moment.",
+                { isDestructive: true, confirmText: 'Remove' }
+            );
+
+            if(!confirmed) return;
 
             try {
                 const res = await fetch(window.parker.route('series.regenerate_thumbnails', { series_id: this.seriesId }), { method: 'POST' });
