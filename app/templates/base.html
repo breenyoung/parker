@@ -150,7 +150,7 @@
 
     {% include "partials/footer.html" %}
 
-    <script src="{{ url('/static/js/app.js') }}"></script>
+    <script src="{{ url('/static/js/app.js') }}?v={{ app_version }}"></script>
 
     <script>
         document.addEventListener('alpine:init', () => {
