@@ -350,7 +350,7 @@ async def create_user(
 
     # Fetch Libraries
     libraries = []
-    if user_in.library_ids:
+    if not user_in.is_superuser and user_in.library_ids:
         libraries = db.query(Library).filter(Library.id.in_(user_in.library_ids)).all()
 
     user = User(
@@ -360,8 +360,8 @@ async def create_user(
         is_superuser=user_in.is_superuser,
         is_active=True,
         accessible_libraries = libraries,
-        max_age_rating=user_in.max_age_rating,
-        allow_unknown_age_ratings=user_in.allow_unknown_age_ratings
+        max_age_rating=None if user_in.is_superuser else user_in.max_age_rating,
+        allow_unknown_age_ratings=False if user_in.is_superuser else user_in.allow_unknown_age_ratings
     )
     db.add(user)
     db.commit()
@@ -394,21 +394,30 @@ async def update_user(
     if updates.is_active is not None:
         user.is_active = updates.is_active
 
-    # Update Libraries
-    if updates.library_ids is not None:
-        libraries = db.query(Library).filter(Library.id.in_(updates.library_ids)).all()
-        user.accessible_libraries = libraries
+    # Update Libraries (with superuser checks)
+    if user.is_superuser:
 
-    if updates.max_age_rating is not None:
-        # Allow clearing the rating by sending empty string, or setting it
-        user.max_age_rating = updates.max_age_rating if updates.max_age_rating else None
+        # Super users have no library or age restrictions
+        user.accessible_libraries = []
+        user.max_age_rating = None
+        user.allow_unknown_age_ratings = False
 
-    if updates.allow_unknown_age_ratings is not None:
-        user.allow_unknown_age_ratings = updates.allow_unknown_age_ratings
+    else:
+
+        if updates.library_ids is not None:
+            libraries = db.query(Library).filter(Library.id.in_(updates.library_ids)).all()
+            user.accessible_libraries = libraries
+
+        if updates.max_age_rating is not None:
+            # Allow clearing the rating by sending empty string, or setting it
+            user.max_age_rating = updates.max_age_rating if updates.max_age_rating else None
+
+        if updates.allow_unknown_age_ratings is not None:
+            user.allow_unknown_age_ratings = updates.allow_unknown_age_ratings
 
     db.commit()
-    return {"message": "User updated"}
 
+    return {"message": "User updated"}
 
 # 4. Delete User
 @router.delete("/{user_id}", tags=["admin"], name="delete")
