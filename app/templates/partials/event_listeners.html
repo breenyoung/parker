@@ -11,7 +11,14 @@
 
     async setBatchReadStatus(isRead) {
         const action = isRead ? 'Read' : 'Unread';
-        if(!confirm(`Mark ${$store.batch.count} items as ${action}?`)) return;
+
+        const confirmed = await window.parker.dialog.confirm(
+            'Mark Item(s)?',
+            `Mark ${$store.batch.count} items as ${action}?`,
+            { isDestructive: false, confirmText: 'Mark' }
+        );
+
+        if(!confirmed) return;
 
         try {
 
