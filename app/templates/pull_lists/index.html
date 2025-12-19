@@ -179,7 +179,15 @@ function pullListIndex() {
         },
 
         async deleteList(id) {
-            if(!confirm("Are you sure you want to delete this list? This cannot be undone.")) return;
+
+            const confirmed = await window.parker.dialog.confirm(
+                "Delete Pull List?",
+                "Are you sure you want to delete this list? This cannot be undone.",
+                { isDestructive: true, confirmText: 'Delete' }
+            );
+
+            if(!confirmed) return;
+
             try {
                 const res = await fetch(window.parker.route('pull_lists.delete', { list_id: id }), { method: 'DELETE' });
                 if (res.ok) {
