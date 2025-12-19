@@ -142,8 +142,6 @@ async def get_user_dashboard(db: SessionDep, current_user: CurrentUser):
     series_data = series_stats.first()
 
     # === TOP CREATORS (Writers & Artists) ===
-
-
     top_writers = db.query(
         Person.name,
         func.count(func.distinct(ReadingProgress.comic_id)).label('comics_read')
@@ -204,8 +202,6 @@ async def get_user_dashboard(db: SessionDep, current_user: CurrentUser):
         .limit(3).all()
 
     # === GENRE DIVERSITY ===
-
-
     genre_breakdown = db.query(
         Genre.name,
         func.count(func.distinct(ReadingProgress.comic_id)).label('count')
@@ -259,7 +255,6 @@ async def get_user_dashboard(db: SessionDep, current_user: CurrentUser):
 
     # === READING BEHAVIOR ===
     # Calculate reading velocity (last 30 days)
-
     thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
 
     recent_activity = db.query(
