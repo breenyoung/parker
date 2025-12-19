@@ -89,7 +89,14 @@ function migrationTool() {
         },
 
         async runMigration() {
-            if(!confirm("Are you sure you want to proceed? Please ensure you have backed up your Parker database.")) return;
+
+            const confirmed = await window.parker.dialog.confirm(
+                "Migrate Kavita data?",
+                "Are you sure you want to proceed? Please ensure you have backed up your Parker database.",
+                { isDestructive: true, confirmText: 'Migrate' }
+            );
+
+            if(!confirmed){ return; }
 
             this.loading = true;
             this.message = '';
