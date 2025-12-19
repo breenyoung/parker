@@ -283,11 +283,11 @@ function userManager() {
             if (res.ok) {
                 this.showAddModal = false;
                 await this.loadUsers();
-                window.showToast('User created successfully.', 'success');
+                window.parker.showToast('User created successfully.', 'success');
             } else {
                 const err = await res.json();
                 const message = err.detail?.[0]?.msg || err.detail;
-                window.showToast(`Failed to create user: ${message}`, 'error');
+                window.parker.showToast(`Failed to create user: ${message}`, 'error');
             }
         },
 
@@ -332,28 +332,39 @@ function userManager() {
 
             if (res.ok) {
                 this.showEditModal = false;
-                window.showToast('User updated successfully.', 'success');
+                window.parker.showToast('User updated successfully.', 'success');
                 await this.loadUsers();
             } else {
                 const err = await res.json();
                 const message = err.detail?.[0]?.msg || err.detail;
-                window.showToast(`Failed to update user: ${message}`, 'error');
+                window.parker.showToast(`Failed to update user: ${message}`, 'error');
             }
         },
 
         async deleteUser(user) {
-            if (!confirm(`Delete user ${user.username}? This will remove their reading history.`)) return;
-            const res = await fetch(window.parker.route('users.delete', {user_id: user.id }), { method: 'DELETE' });
-            if (res.ok) {
-                window.showToast('User deleted successfully.', 'success');
-                await this.loadUsers();
-            }
-            else {
-                const err = await res.json();
-                const message = err.detail?.[0]?.msg;
-                window.showToast(`Error deleting user: ${message || 'Unknown error'}`, 'error');
+            const confirmed = await window.parker.dialog.confirm(
+                "Delete User?",
+                `Are you sure you want to delete user ${user.username}? This will remove their reading history.`,
+                { isDestructive: true, confirmText: 'Remove' }
+            );
+
+            if (confirmed) {
+                try {
+                    const res = await fetch(window.parker.route('users.delete', {user_id: user.id }), { method: 'DELETE' });
+
+                    if (res.ok) {
+                        window.parker.showToast('User deleted successfully.', 'success');
+                        await this.loadUsers();
+                    }
+                    else {
+                        const err = await res.json();
+                        const message = err.detail?.[0]?.msg;
+                        window.parker.showToast(`Error deleting user: ${message || 'Unknown error'}`, 'error');
+                    }
+                } catch(e) { console.error(e); }
             }
         },
+
 
         formatDate(dateStr) {
             if (!dateStr) return 'Never';
