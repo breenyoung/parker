@@ -197,14 +197,14 @@ class ThumbnailService:
         # 1. BUILD QUERY based on inputs
         if series_id:
             # Targeted Series Scan (Does not require self.library_id)
-            self.logger.info(f"Processing Series {series_id}")
+            #self.logger.info(f"Processing Series {series_id}")
             comics = (self.db.query(Comic)
                       .join(Volume)
                       .filter(Volume.series_id == series_id)
                       .all())
         elif self.library_id:
             # Library-Wide Scan (Uses existing helper)
-            self.logger.info(f"Processing Library {self.library_id}")
+            #self.logger.info(f"Processing thumbnails for Library {self.library_id}")
             comics = self._get_target_comics(force=force)
         else:
             # Error: Neither target provided
