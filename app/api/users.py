@@ -22,6 +22,7 @@ from app.models.credits import Person, ComicCredit
 from app.models.tags import Character, comic_characters
 from app.models.tags import Genre, comic_genres
 from app.models.reading_progress import ReadingProgress
+from app.models.activity_log import ActivityLog
 from app.models.pull_list import PullList, PullListItem
 from app.services.images import ImageService
 from app.services.settings_service import SettingsService
@@ -380,6 +381,29 @@ async def get_user_dashboard(db: SessionDep, current_user: CurrentUser):
         for p in recent_progress
     ]
 
+    # === HEATMAP DATA (Intensity Based) ===
+    one_year_ago = datetime.now(timezone.utc) - timedelta(days=365)
+
+    # We join through to Series to apply the "Poison Pill" age filters
+    heatmap_query = db.query(
+        func.date(ActivityLog.created_at).label('read_date'),
+        func.sum(ActivityLog.pages_read).label('intensity')
+    ).join(Comic, ActivityLog.comic_id == Comic.id) \
+        .join(Volume, Comic.volume_id == Volume.id) \
+        .join(Series, Volume.series_id == Series.id) \
+        .filter(
+        ActivityLog.user_id == current_user.id,
+        ActivityLog.created_at >= one_year_ago
+    )
+
+    # Apply Row-Level Security (RLS) filters if they exist
+    if series_age_filter is not None:
+        heatmap_query = heatmap_query.filter(series_age_filter)
+
+    heatmap_results = heatmap_query.group_by(func.date(ActivityLog.created_at)).all()
+    heatmap_data = {row.read_date: row.intensity for row in heatmap_results}
+
+
     # === ASSEMBLE RESPONSE ===
     return {
         "opds_enabled": opds_enabled,
@@ -417,7 +441,8 @@ async def get_user_dashboard(db: SessionDep, current_user: CurrentUser):
         },
         "collection": collection_stats,
         "pull_lists": [{"id": pl.id, "name": pl.name, "count": len(pl.items)} for pl in pull_lists],
-        "continue_reading": continue_reading
+        "continue_reading": continue_reading,
+        "heatmap": heatmap_data,
     }
 
 
