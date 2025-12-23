@@ -335,7 +335,9 @@
                         <template x-for="genre in data?.genres?.top_genres || []" :key="genre.name">
                             <div>
                                 <div class="flex justify-between text-sm mb-1">
-                                    <span class="text-gray-300" x-text="genre.name"></span>
+                                    <a :href="window.parker.route('pages.search', {}, `field=genre&value=${encodeURIComponent(genre.name)}&operator=equal`)">
+                                        <span class="text-gray-300" x-text="genre.name"></span>
+                                    </a>
                                     <span class="text-gray-500" x-text="`${genre.count} (${genre.percentage}%)`"></span>
                                 </div>
                                 <div class="w-full h-2 bg-gray-700 rounded-full overflow-hidden">
@@ -362,7 +364,9 @@
                             <div class="flex items-center justify-between p-2 bg-gray-900/50 rounded">
                                 <div class="flex items-center gap-2">
                                     <span class="text-xs font-bold text-gray-500" x-text="`#${index + 1}`"></span>
-                                    <span class="text-sm text-gray-300" x-text="char.name"></span>
+                                    <a :href="window.parker.route('pages.search', {}, `field=character&value=${encodeURIComponent(char.name)}&operator=equal`)">
+                                        <span class="text-sm text-gray-300" x-text="char.name"></span>
+                                    </a>
                                 </div>
                                 <span class="text-xs text-yellow-400" x-text="`${char.appearances} appearances`"></span>
                             </div>
