@@ -88,15 +88,10 @@ class UserPreferencesUpdateRequest(BaseModel):
     share_progress_enabled: Optional[bool] = None
     monthly_reading_goal: Optional[int] = Field(None, ge=1)
 
-@router.get("/me/dashboard", name="dashboard")
-# Optimized Enhanced Dashboard Endpoint - Add to users.py
-# Reduces number of queries and eliminates N+1 issues
 
 @router.get("/me/dashboard", name="dashboard")
 # Optimized Enhanced Dashboard Endpoint - Add to users.py
 # Reduces number of queries and eliminates N+1 issues
-
-@router.get("/me/dashboard", name="dashboard")
 async def get_user_dashboard(db: SessionDep, current_user: CurrentUser):
     """
     Optimized User Dashboard - Minimizes database queries
