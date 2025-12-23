@@ -15,14 +15,9 @@ from app.config import settings
 from app.core.comic_helpers import get_reading_time, get_banned_comic_condition, get_series_age_restriction
 from app.core.security import verify_password, get_password_hash
 from app.models.comic import Comic, Volume
-from app.models.series import Series
 from app.models.user import User
 from app.models.library import Library
-from app.models.credits import Person, ComicCredit
-from app.models.tags import Character, comic_characters
-from app.models.tags import Genre, comic_genres
 from app.models.reading_progress import ReadingProgress
-from app.models.activity_log import ActivityLog
 from app.models.pull_list import PullList, PullListItem
 from app.services.images import ImageService
 from app.services.settings_service import SettingsService
@@ -87,9 +82,11 @@ class UserPasswordUpdateRequest(BaseModel):
 class UserPreferencesResponse(BaseModel):
     user_id: int
     share_progress_enabled: bool
+    monthly_reading_goal: int
 
 class UserPreferencesUpdateRequest(BaseModel):
     share_progress_enabled: Optional[bool] = None
+    monthly_reading_goal: Optional[int] = Field(None, ge=1)
 
 @router.get("/me/dashboard", name="dashboard")
 # Optimized Enhanced Dashboard Endpoint - Add to users.py
@@ -241,6 +238,7 @@ async def get_preferences(db: SessionDep, current_user: CurrentUser):
 
     return {
         "share_progress_enabled": user.share_progress_enabled,
+        "monthly_reading_goal": current_user.monthly_reading_goal,
     }
 
 @router.patch("/me/preferences", name="update_preferences")
@@ -251,6 +249,10 @@ async def update_preferences(payload: UserPreferencesUpdateRequest, db: SessionD
 
     if payload.share_progress_enabled is not None:
         current_user.share_progress_enabled = payload.share_progress_enabled
+        have_settings_changed = True
+
+    if payload.monthly_reading_goal is not None:
+        current_user.monthly_reading_goal = payload.monthly_reading_goal
         have_settings_changed = True
 
     if have_settings_changed:

@@ -24,6 +24,8 @@ class User(Base):
 
     max_age_rating = Column(String, nullable=True, default=None)
     allow_unknown_age_ratings = Column(Boolean, default=False)
+    monthly_reading_goal = Column(Integer, default=10)
+
 
     # Permissions
     is_active = Column(Boolean, default=True)
@@ -32,7 +34,9 @@ class User(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     last_login = Column(DateTime, nullable=True)
 
+    #======================
     # Relationships
+    #======================
 
     # When a user is deleted, delete their reading history too
     reading_progress = relationship("ReadingProgress", back_populates="user", cascade="all, delete-orphan")
