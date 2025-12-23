@@ -292,11 +292,12 @@ class StatisticsService:
             "genres": genre_diversity,
             "reading_behavior": {
                 'last_30_days': {
-                    'comics_read': stats.recent_comics or 0,
-                    'pages_read': stats.recent_pages or 0
+                    "comics_read": stats.recent_comics or 0,
+                    "pages_read": stats.recent_pages or 0
                 },
-                'avg_days_to_complete': round(avg_days, 1),
-                'reading_pace': reading_pace
+                "avg_days_to_complete": round(avg_days, 1),
+                "reading_pace": reading_pace,
+                "monthly_reading_goal": self.user.monthly_reading_goal,
             },
             "collection": collection_stats,
             "heatmap": heatmap_data,
