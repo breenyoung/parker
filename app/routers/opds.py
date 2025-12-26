@@ -3,6 +3,7 @@ from fastapi.responses import Response, FileResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import joinedload
 from datetime import datetime, timezone
+from collections import defaultdict
 
 from app.api.opds_deps import OPDSUser, SessionDep
 from app.models import ComicCredit
@@ -12,7 +13,7 @@ from app.models.comic import Comic, Volume
 from app.core.comic_helpers import (
     get_series_age_restriction,
     get_comic_age_restriction,
-    get_age_rating_config
+    get_age_rating_config, NON_PLAIN_FORMATS, get_thumbnail_url
 )
 
 templates = Jinja2Templates(directory="app/templates")
@@ -27,6 +28,19 @@ def render_xml(request: Request, context: dict):
         context=context,
         media_type="application/atom+xml;charset=utf-8"
     )
+
+# Helper: Check if format is "Standard" (Not Annual/Special)
+def is_standard_format(fmt: str) -> bool:
+    if not fmt: return True
+    f = fmt.lower()
+    return f not in NON_PLAIN_FORMATS
+
+# Helper: Safe Sort Key for issues
+def issue_sort_key(c):
+    try:
+        return float(c.number)
+    except:
+        return 999999
 
 
 # 1. ROOT: List Libraries
@@ -82,17 +96,47 @@ async def opds_library(library_id: int, request: Request, user: OPDSUser, db: Se
 
     series_list = query.order_by(Series.name).all()
 
+    # Collect Series IDs
+    series_ids = [s.id for s in series_list]
+    # Fetch ALL Comics for these series in one go (Lightweight columns only)
+    raw_comics = (
+        db.query(Comic.id, Comic.number, Comic.year,
+                 Comic.format, Comic.updated_at, Comic.thumbnail_path,
+            Volume.series_id, Volume.volume_number
+        ).join(Volume).filter(Volume.series_id.in_(series_ids)).all()
+    )
+
+    # Group Comics by Series in Python
+    series_map = defaultdict(list)
+    for row in raw_comics:
+        series_map[row.series_id].append(row)
+
     entries = []
     for s in series_list:
+
+        s_comics = series_map.get(s.id, [])
+        cover_comic = None
+        if s_comics:
+            # Filter for standards
+            standards = [c for c in s_comics if is_standard_format(c.format)]
+            pool = standards if standards else s_comics
+            issue_ones = [c for c in pool if c.number == '1']
+            if issue_ones:
+                issue_ones.sort(key=lambda c: c.volume_number)
+                cover_comic = issue_ones[0]
+            else:
+                # Fallback: Sort by number
+                pool.sort(key=issue_sort_key)
+                cover_comic = pool[0]
+
+
         entries.append({
             "id": f"urn:parker:series:{s.id}",
             "title": f"{s.name} ({s.year})",
             "updated": s.updated_at.isoformat(),
             "link": f"/opds/series/{s.id}",
             "summary": s.description,
-            # Reuse your existing thumbnail API, passing the series ID
-            # Assuming you have a route like /api/series/{id}/thumbnail
-            "thumbnail": f"/api/series/{s.id}/thumbnail"
+            "thumbnail": get_thumbnail_url(cover_comic.id, cover_comic.updated_at) if cover_comic else None,
         })
 
     return render_xml(request, {
