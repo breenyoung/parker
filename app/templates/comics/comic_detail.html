@@ -47,7 +47,7 @@
             <div class="md:col-span-1 space-y-6">
                 <div class="w-64 mx-auto md:w-full aspect-[2/3] bg-gray-800 rounded-lg overflow-hidden shadow-2xl relative group border border-gray-700">
                     <img
-                        :src="window.parker.route('comics.thumbnail', { comic_id: comicId }, 'width=400&height=600')"
+                        :src="window.parker.route('comics.thumbnail', { comic_id: comicId }, `v=${comic?.thumbnail_hash}&width=400&height=600`)"
                         :alt="comic?.title"
                         class="w-full h-full object-cover"
                     >
