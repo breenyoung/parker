@@ -155,10 +155,18 @@
                 </h3>
             </div>
             <div class="space-y-1 md:space-y-3">
-                <div>
-                    <div class="text-sm md:text-xl font-bold text-yellow-400 truncate" x-text="data?.reading_behavior?.reading_pace || 'N/A'"></div>
-                    <div class="hidden md:block text-[10px] text-gray-500 mt-0.5">Your consumption style</div>
-                </div>
+                <template x-if="data?.stats?.completed_comics > 0">
+                    <div>
+                        <div class="text-sm md:text-xl font-bold text-yellow-400 truncate" x-text="data?.reading_behavior?.reading_pace || 'N/A'"></div>
+                        <div class="hidden md:block text-[10px] text-gray-500 mt-0.5">Your consumption style</div>
+                    </div>
+                </template>
+                <template x-if="data?.stats?.completed_comics === 0">
+                    <div>
+                        <div class="text-sm md:text-xl font-bold text-gray-500 truncate italic">Calculating...</div>
+                        <div class="hidden md:block text-[10px] text-gray-400 mt-0.5">Finish a comic to see your pace</div>
+                    </div>
+                </template>
 
                 <div class="text-[9px] md:text-xs text-gray-400">
                     <span class="hidden md:inline">Average of</span>
@@ -167,7 +175,7 @@
                     <span class="md:hidden">days avg</span>
                 </div>
 
-                <div class="hidden md:block pt-1 border-t border-gray-700/50 mt-2">
+                <div class="hidden md:block pt-1 border-t border-gray-700/50 mt-2" x-show="data?.stats?.completed_comics > 0">
                     <p class="text-[10px] text-gray-500 italic">
                         <template x-if="data?.reading_behavior?.reading_pace === 'Binge Reader'">
                             <span>You finish most issues in under 24 hours!</span>
