@@ -8,7 +8,7 @@ import re
 import random
 
 from app.core.comic_helpers import (get_reading_time, get_format_sort_index, REVERSE_NUMBERING_SERIES,
-                                    get_age_rating_config, get_series_age_restriction)
+                                    get_age_rating_config, get_series_age_restriction, get_thumbnail_url, get_thumbnail_hash)
 from app.api.deps import SessionDep, CurrentUser, ComicDep
 
 from app.models.comic import Comic, Volume
@@ -151,6 +151,7 @@ async def get_comic(comic_id: int, db: SessionDep, current_user: CurrentUser):
         "filename": comic.filename,
         "file_path": comic.file_path,
         "file_size": comic.file_size,
+        "thumbnail_hash": get_thumbnail_hash(comic.updated_at),
 
         # Library info
         "library_id": comic.volume.series.library_id,
@@ -219,10 +220,8 @@ async def get_comic_thumbnail(
         db: SessionDep
 ):
     """
-        Get the thumbnail for a comic (public)
-    Serves from storage/cover. Regenerates if missing.
-        Self-healing: Generates file if missing, but DOES NOT write to DB
-        to avoid locking issues during parallel loading.
+    Get the thumbnail for a comic (public)
+    Serves from storage/cover.
     """
     # 1. Base Query
     comic = db.query(Comic).filter(Comic.id == comic_id).first()
@@ -231,33 +230,38 @@ async def get_comic_thumbnail(
         # We return 404 here to prevent leaking existence of the comic
         raise HTTPException(status_code=404, detail="Comic not found")
 
+    last_mod = int(comic.updated_at.timestamp()) if comic.updated_at else 0
+    etag = f'"{comic_id}-{last_mod}"'
+
+    thumb_path = None
 
     # 2. Layer 1: Check the path stored in the Database
     if comic.thumbnail_path:
         db_path = Path(comic.thumbnail_path)
         if db_path.exists():
-            return FileResponse(db_path, media_type="image/webp")
+            thumb_path = db_path
 
-    # 3. Layer 2: Check the "Standard" path (Self-Healing fallback)
-    # This handles cases where the DB is NULL or points to a file that was deleted.
-    standard_path = Path(f"./storage/cover/comic_{comic.id}.webp")
+    if not thumb_path:
+        # 3. Layer 2: Check the "Standard" path (Self-Healing fallback)
+        # This handles cases where the DB is NULL or points to a file that was deleted.
+        standard_path = Path(f"./storage/cover/comic_{comic.id}.webp")
+        if standard_path.exists():
+            thumb_path = standard_path
 
-    if standard_path.exists():
-        return FileResponse(standard_path, media_type="image/webp")
+    if thumb_path:
 
-    # 4. Layer 3: Generate on the fly
-    # We use the standard path for the new file.
-    image_service = ImageService()
-    success = image_service.generate_thumbnail(comic.file_path, standard_path)
-
-    if not success:
+        return FileResponse(
+            thumb_path,
+            media_type="image/webp",
+            headers={
+                "ETag": etag,
+                "Cache-Control": "public, max-age=31536000",  # 1 year
+                "Vary": "Accept-Encoding"
+            }
+        )
+    else:
         # Return a placeholder or 404
-        raise HTTPException(status_code=404, detail="Could not generate thumbnail")
-
-    # NOTE: We serve the file, but we DO NOT write back to the DB here.
-    # This avoids the "Database Locked" issues during parallel loading.
-    # The next time this runs, it will hit Layer 2 and succeed.
-    return FileResponse(standard_path, media_type="image/webp")
+        raise HTTPException(status_code=404, detail="Could not find thumbnail")
 
 
 @router.get("/random/backgrounds", name="random_backgrounds")
@@ -271,22 +275,22 @@ async def get_random_backgrounds(
     """
     # 1. Fetch ALL eligible IDs (Linear scan, fast)
     # We only fetch the ID column to minimize memory usage
-    all_ids_query = db.query(Comic.id).filter(Comic.thumbnail_path != None).all()
+    all_rows = db.query(Comic.id, Comic.updated_at).filter(Comic.thumbnail_path != None).all()
 
     # SQLAlchemy returns a list of tuples like [(1,), (2,), (5,)]
     # We flatten this to a standard list [1, 2, 5]
-    all_ids = [r[0] for r in all_ids_query]
+    #all_ids = [r[0] for r in all_ids_query]
 
-    if not all_ids:
+    if not all_rows:
         return []
 
     # 2. Python Sample (Instant)
     # Safe handling if we have fewer comics than the requested limit
-    sample_size = min(len(all_ids), limit)
-    selected_ids = random.sample(all_ids, sample_size)
+    sample_size = min(len(all_rows), limit)
+    selected_rows = random.sample(all_rows, sample_size)
 
     # 3. Construct URLs (No extra DB query needed)
-    return [f"api/comics/{cid}/thumbnail" for cid in selected_ids]
+    return [get_thumbnail_url(cid, updated_at) for cid, updated_at in selected_rows]
 
 
 @router.get("/covers/manifest", name="cover_manifest")
@@ -307,6 +311,7 @@ async def get_cover_manifest(
         Comic.id,
         Comic.title,
         Comic.number,
+        Comic.updated_at,
         Volume.volume_number,
         Series.name.label("series_name")
     ) \
@@ -392,7 +397,7 @@ async def get_cover_manifest(
                 "comic_id": r.id,
                 # Explicitly use the labeled series name
                 "label": f"{r.series_name} #{r.number}",
-                "thumbnail_url": f"/api/comics/{r.id}/thumbnail"
+                "thumbnail_url": get_thumbnail_url(r.id, r.updated_at)
             }
             for r in items
         ]

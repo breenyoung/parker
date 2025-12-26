@@ -8,7 +8,7 @@ from collections import defaultdict
 
 from app.core.settings_loader import get_cached_setting
 from app.api.deps import SessionDep, CurrentUser
-from app.core.comic_helpers import get_smart_cover, get_series_age_restriction
+from app.core.comic_helpers import get_smart_cover, get_series_age_restriction, get_thumbnail_url
 from app.models.comic import Comic, Volume
 from app.models.series import Series
 from app.models.user import User
@@ -33,7 +33,7 @@ def format_home_item(comic: Comic, progress: ReadingProgress = None) -> dict:
         "year": comic.year,
         "publisher": comic.publisher,
         "format": comic.format,
-        "thumbnail_path": f"/api/comics/{comic.id}/thumbnail",
+        "thumbnail_path": get_thumbnail_url(comic.id, comic.updated_at),
         "community_rating": comic.community_rating,
         "progress_percentage": None
     }
@@ -129,6 +129,7 @@ def get_random_gems(
             Comic.year,
             Comic.format,
             Comic.publisher,  # Needed for response
+            Comic.updated_at,
             Volume.series_id
         )
         .join(Volume)
@@ -154,7 +155,7 @@ def get_random_gems(
             "id": s.id,
             "name": s.name,
             "start_year": first_issue.year,
-            "thumbnail_path": f"/api/comics/{first_issue.id}/thumbnail",
+            "thumbnail_path": get_thumbnail_url(first_issue.id, first_issue.updated_at),
             "publisher": first_issue.publisher,
             "volume_count": len(s.volumes) if s.volumes else 0,
             "starred": False # You can query UserSeries if you want this accurate
@@ -422,7 +423,7 @@ def get_popular(
             "id": s.id,
             "name": s.name,
             "start_year": first_issue.year,
-            "thumbnail_path": f"/api/comics/{first_issue.id}/thumbnail",
+            "thumbnail_path": get_thumbnail_url(first_issue.id, first_issue.updated_at),
             "publisher": first_issue.publisher,
             "volume_count": len(s.volumes) if s.volumes else 0,
             "starred": False

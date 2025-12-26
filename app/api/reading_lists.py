@@ -5,7 +5,7 @@ from typing import Annotated, List
 
 from app.api.deps import SessionDep, CurrentUser, PaginationParams, PaginatedResponse
 from app.core.comic_helpers import (get_aggregated_metadata,
-                                    get_age_rating_config, get_banned_comic_condition,
+                                    get_thumbnail_url, get_banned_comic_condition,
                                     check_container_restriction)
 from app.models.comic import Comic, Volume
 from app.models.series import Series
@@ -143,7 +143,7 @@ async def get_reading_list(list_id: int, db: SessionDep, current_user: CurrentUs
             "filename": comic.filename,
             "year": comic.year,
             "format": comic.format,
-            "thumbnail_path": f"/api/comics/{comic.id}/thumbnail"
+            "thumbnail_path": get_thumbnail_url(comic.id, comic.updated_at)
         })
 
     # (Empty lists are valid in some UIs, but keeping 404 behavior)

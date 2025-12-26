@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session, joinedload, aliased
 from sqlalchemy import Float, func, select, and_, or_, not_
 from typing import List, Annotated
 
-from app.core.comic_helpers import (get_aggregated_metadata, get_series_age_restriction,
+from app.core.comic_helpers import (get_aggregated_metadata, get_series_age_restriction, get_thumbnail_url,
                                     get_banned_comic_condition, check_container_restriction)
 from app.api.deps import SessionDep, CurrentUser, AdminUser, PaginationParams, PaginatedResponse
 from app.models.collection import Collection, CollectionItem
@@ -152,7 +152,7 @@ async def get_collection(current_user: CurrentUser,
             "filename": comic.filename,
             "year": comic.year,
             "format": comic.format,
-            "thumbnail_path": f"/api/comics/{comic.id}/thumbnail"
+            "thumbnail_path": get_thumbnail_url(comic.id, comic.updated_at)
         })
 
     if len(comics) <= 0:

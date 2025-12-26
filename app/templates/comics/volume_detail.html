@@ -159,7 +159,7 @@
                                                 </svg>
                                                 <div class="flex-1 text-left">
                                                     <span class="font-bold">Missing:</span>
-                                                    <span class="text-orange-200" :title="volume.missing_issues.join(', ')" x-text="window.parker.formatMissing(volume.missing_issues)"></span>
+                                                    <span class="text-orange-200" :title="volume.missing_issues.join(', ')" x-text="formatMissing(volume.missing_issues)"></span>
                                                 </div>
                                             </div>
                                         </template>

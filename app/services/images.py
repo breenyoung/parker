@@ -197,54 +197,7 @@ class ImageService:
         except Exception:
             return 0
 
-    def generate_thumbnail(self, comic_path: str, output_path: Path) -> bool:
-        """
-        Generate a thumbnail from the comic cover and save it to the specific output path.
 
-        Args:
-            comic_path: Source comic file
-            output_path: Destination for the .webp thumbnail
-
-        Returns:
-            True if successful, False otherwise
-        """
-        try:
-            # 1. Extract Cover
-            # We pass transcode_webp=False because we are about to resize it anyway.
-            # We don't want to compress -> decompress -> resize -> compress.
-            cover_bytes, is_correct_format, _ = self.get_page_image(comic_path, 0, transcode_webp=False)
-            if not cover_bytes or not is_correct_format:
-                return False
-
-            # 2. Process Image
-            img = Image.open(BytesIO(cover_bytes))
-
-            # Handle Color Modes (CMYK, Palettes, etc.)
-            if img.mode in ('RGBA', 'LA', 'P'):
-                background = Image.new('RGB', img.size, (255, 255, 255))
-                if img.mode == 'P':
-                    img = img.convert('RGBA')
-                background.paste(img, mask=img.split()[-1] if img.mode == 'RGBA' else None)
-                img = background
-            elif img.mode != 'RGB':
-                img = img.convert('RGB')
-
-            # 3. Resize
-            width, height = self.thumbnail_size
-            img.thumbnail((width, height), Image.Resampling.LANCZOS)
-
-            # 4. Save to Destination
-            # Ensure directory exists
-            output_path.parent.mkdir(parents=True, exist_ok=True)
-
-            img.save(output_path, format='WEBP', quality=85, method=6)
-            return True
-
-        except Exception as e:
-            print(f"Error generating thumbnail for {comic_path}: {e}")
-            return False
-
-    # Avatar Processing Logic
     def process_avatar(self, image_data: bytes, output_path: Path) -> bool:
         """
         Process a raw avatar upload:

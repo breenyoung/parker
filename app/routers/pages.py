@@ -154,6 +154,12 @@ async def dashboard(request: Request, user: CurrentUser):
 async def settings_page(request: Request, user: CurrentUser):
     return templates.TemplateResponse("user/settings.html", {"request": request})
 
+@router.get("/user/year-in-review", response_class=HTMLResponse, name="user_year_in_review")
+async def year_in_review_page(request: Request, user: CurrentUser):
+    return templates.TemplateResponse("user/year_in_review.html", {"request": request})
+
+
+
 @router.get("/browse/{context_type}/{context_id}", response_class=HTMLResponse, name="cover_browser")
 async def cover_browser_page(request: Request, context_type: str, context_id: int, user: CurrentUser):
     # Pass label logic or let JS fetch it

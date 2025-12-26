@@ -905,8 +905,13 @@ function reader() {
             // Block updates if incognito
             if (this.isIncognito) { return; }
 
+            const params = new URLSearchParams();
+            if(this.contextType) params.append('context_type', this.contextType);
+            if(this.contextId) params.append('context_id', this.contextId);
+
+
             // Debounce or fire-and-forget
-            fetch(window.parker.route('progress.comic_progress', { comic_id: this.comicId }), {
+            fetch(window.parker.route('progress.comic_progress', { comic_id: this.comicId }, `${params.toString()}`), {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ current_page: this.currentPage, total_pages: this.meta.page_count })

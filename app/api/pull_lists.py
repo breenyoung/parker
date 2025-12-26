@@ -5,7 +5,7 @@ from typing import List, Optional
 from pydantic import BaseModel
 
 from app.core.comic_helpers import (get_aggregated_metadata, get_series_age_restriction,
-                                    check_container_restriction, get_banned_comic_condition)
+                                    get_thumbnail_url, get_banned_comic_condition)
 from app.api.deps import SessionDep, CurrentUser
 from app.models.pull_list import PullList, PullListItem
 from app.models.comic import Comic
@@ -94,7 +94,7 @@ def get_list_details(list_id: int, db: SessionDep, current_user: CurrentUser):
             "series_name": item.comic.volume.series.name,
             "volume_number": item.comic.volume.volume_number,
             "number": item.comic.number,
-            "thumbnail_path": f"/api/comics/{item.comic.id}/thumbnail",
+            "thumbnail_path": get_thumbnail_url(item.comic.id, item.comic.updated_at),
             "sort_order": item.sort_order,
             "read": False  # we could join ReadingProgress here in the future
         })

@@ -48,7 +48,7 @@
                     <div class="flex-shrink-0">
                         <div x-show="series?.first_issue_id" class="w-40 h-60 md:w-48 md:h-72 bg-gray-700 rounded-lg overflow-hidden shadow-lg mx-auto md:mx-0">
                             <img
-                                :src="series?.first_issue_id ? window.parker.route('comics.thumbnail', { comic_id: series.first_issue_id }, 'width=300&height=450') : ''"
+                                :src="series?.first_issue_id ? window.parker.route('comics.thumbnail', { comic_id: series.first_issue_id }, `v=${series.thumbnail_hash}&width=300&height=450`) : ''"
                                 :alt="series?.name"
                                 class="w-full h-full object-cover"
                             >

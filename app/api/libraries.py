@@ -3,7 +3,7 @@ from typing import List, Annotated, Optional
 from pydantic import BaseModel
 from sqlalchemy import func, case
 
-from app.core.comic_helpers import get_smart_cover, NON_PLAIN_FORMATS, REVERSE_NUMBERING_SERIES, get_series_age_restriction
+from app.core.comic_helpers import get_thumbnail_url, NON_PLAIN_FORMATS, REVERSE_NUMBERING_SERIES, get_series_age_restriction
 from app.models.library import Library
 from app.models.series import Series
 from app.models.comic import Comic, Volume
@@ -160,6 +160,7 @@ async def get_library_series(
             Comic.number,
             Comic.year,
             Comic.format,
+            Comic.updated_at,
             Volume.series_id,
             Volume.volume_number
         )
@@ -260,7 +261,7 @@ async def get_library_series(
             "library_id": s.library_id,
             "start_year": cover_comic.year if cover_comic else None,
             "created_at": getattr(s, 'created_at', None),
-            "thumbnail_path": f"/api/comics/{cover_comic.id}/thumbnail" if cover_comic else None,
+            "thumbnail_path": get_thumbnail_url(cover_comic.id, cover_comic.updated_at) if cover_comic else None,
             "read": is_fully_read,
         })
 

@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, status, HTTPException, UploadFile, File, Depends
 from fastapi.responses import FileResponse
 from sqlalchemy import or_
@@ -6,21 +7,24 @@ from typing import List, Annotated, Optional
 from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
 from pathlib import Path
-from sqlalchemy import func, not_
+from sqlalchemy import func, not_, and_
 
 
 from app.api.deps import SessionDep, AdminUser, CurrentUser, PaginatedResponse, PaginationParams
 from app.config import settings
-from app.core.comic_helpers import get_reading_time, get_banned_comic_condition, get_series_age_restriction
+from app.core.comic_helpers import get_thumbnail_url, get_banned_comic_condition, get_series_age_restriction
 from app.core.security import verify_password, get_password_hash
 from app.models.comic import Comic, Volume
-from app.models.series import Series
 from app.models.user import User
 from app.models.library import Library
 from app.models.reading_progress import ReadingProgress
 from app.models.pull_list import PullList, PullListItem
 from app.services.images import ImageService
 from app.services.settings_service import SettingsService
+from app.services.statistics import StatisticsService
+
+def get_stats_service(db: SessionDep, user: CurrentUser) -> StatisticsService:
+    return StatisticsService(db, user)
 
 router = APIRouter()
 
@@ -78,53 +82,32 @@ class UserPasswordUpdateRequest(BaseModel):
 class UserPreferencesResponse(BaseModel):
     user_id: int
     share_progress_enabled: bool
+    monthly_reading_goal: int
 
 class UserPreferencesUpdateRequest(BaseModel):
     share_progress_enabled: Optional[bool] = None
+    monthly_reading_goal: Optional[int] = Field(None, ge=1)
+
 
 @router.get("/me/dashboard", name="dashboard")
+# Optimized Enhanced Dashboard Endpoint - Add to users.py
+# Reduces number of queries and eliminates N+1 issues
 async def get_user_dashboard(db: SessionDep, current_user: CurrentUser):
     """
-    Aggregate stats and lists for the User Dashboard.
-    OPTIMIZED: Eager loads relationships to prevent N+1 queries on the Dashboard.
-    Filters out age-restricted content from Stats, Pull Lists, and Continue Reading.
+    Optimized User Dashboard - Minimizes database queries
     """
 
-    # --- Check OPDS Status ---
     settings_svc = SettingsService(db)
     opds_enabled = settings_svc.get("server.opds_enabled")
 
-    # --- PREPARE SECURITY FILTER ---
-    # FIX: Use Series-Level Poison Pill instead of Row-Level Check.
-    # This prevents "Safe" comics from "Banned" series appearing in Continue Reading or Stats.
+    stats_service = StatisticsService(db, current_user)
+    dashboard_payload = stats_service.get_dashboard_payload()
+
+    # Security filters
     series_age_filter = get_series_age_restriction(current_user)
     banned_condition = get_banned_comic_condition(current_user)
 
-    # 1. Calculate Stats
-    # Join Progress -> Comic to get page counts
-    stats_query = db.query(
-        func.count(ReadingProgress.id).label('issues_read'),
-        func.sum(Comic.page_count).label('total_pages')
-    ).join(Comic, ReadingProgress.comic_id == Comic.id) \
-        .join(Volume).join(Series) \
-        .filter(
-        ReadingProgress.user_id == current_user.id,
-        ReadingProgress.completed == True
-    )
-
-    if series_age_filter is not None:
-        stats_query = stats_query.filter(series_age_filter)
-
-    stats_result = stats_query.first()
-
-    issues_read = stats_result.issues_read or 0
-    total_pages = stats_result.total_pages or 0
-
-    # Calculate Time (1.25 mins per page)
-    time_read_str = get_reading_time(total_pages)
-
-    # 2. Get Pull Lists (Limit 5 for dashboard overview)
-    # OPTIMIZATION: selectinload(PullList.items) prevents N+1 when calling len(pl.items) later
+    # === PULL LISTS (with eager loading) ===
     pull_lists_query = db.query(PullList).options(selectinload(PullList.items)) \
         .filter(PullList.user_id == current_user.id) \
         .order_by(PullList.updated_at.desc())
@@ -136,37 +119,36 @@ async def get_user_dashboard(db: SessionDep, current_user: CurrentUser):
 
     pull_lists = pull_lists_query.limit(5).all()
 
-    # 3. Get "Continue Reading" (Limit 6)
-    # OPTIMIZATION: joinedload Comic->Volume->Series to prevent N+1 loop during formatting
-    # FIX: Use contains_eager to rely on the explicit joins we made.
-    # This prevents double-joining and ensures filtering applies to the loaded objects.
-
+    # === CONTINUE READING (with eager loading) ===
     recent_progress_query = db.query(ReadingProgress) \
         .join(ReadingProgress.comic).join(Comic.volume).join(Volume.series) \
         .options(
-            contains_eager(ReadingProgress.comic).contains_eager(Comic.volume).contains_eager(Volume.series)
-        ).filter(
+        contains_eager(ReadingProgress.comic)
+        .contains_eager(Comic.volume)
+        .contains_eager(Volume.series)
+    ).filter(
         ReadingProgress.user_id == current_user.id,
-        # Robust check for Incomplete (Handles False or NULL)
         or_(ReadingProgress.completed == False, ReadingProgress.completed == None),
         ReadingProgress.current_page > 0
-        )
+    )
 
     if series_age_filter is not None:
         recent_progress_query = recent_progress_query.filter(series_age_filter)
 
-    recent_progress = recent_progress_query.order_by(ReadingProgress.last_read_at.desc()).limit(6).all()
+    recent_progress = recent_progress_query \
+        .order_by(ReadingProgress.last_read_at.desc()) \
+        .limit(6).all()
 
-    continue_reading = []
-    for p in recent_progress:
-        # Accessing these properties is instant (in-memory)
-        continue_reading.append({
+    continue_reading = [
+        {
             "comic_id": p.comic.id,
             "series_name": p.comic.volume.series.name,
             "number": p.comic.number,
             "percentage": p.progress_percentage,
-            "thumbnail": f"/api/comics/{p.comic.id}/thumbnail"
-        })
+            "thumbnail": get_thumbnail_url(p.comic.id, p.comic.updated_at)
+        }
+        for p in recent_progress
+    ]
 
     return {
         "opds_enabled": opds_enabled,
@@ -175,13 +157,9 @@ async def get_user_dashboard(db: SessionDep, current_user: CurrentUser):
             "created_at": current_user.created_at,
             "avatar_url": f"/api/users/{current_user.id}/avatar" if current_user.avatar_path else None
         },
-        "stats": {
-            "issues_read": issues_read,
-            "pages_turned": total_pages,
-            "time_read": time_read_str
-        },
         "pull_lists": [{"id": pl.id, "name": pl.name, "count": len(pl.items)} for pl in pull_lists],
-        "continue_reading": continue_reading
+        "continue_reading": continue_reading,
+        **dashboard_payload,
     }
 
 
@@ -255,6 +233,7 @@ async def get_preferences(db: SessionDep, current_user: CurrentUser):
 
     return {
         "share_progress_enabled": user.share_progress_enabled,
+        "monthly_reading_goal": current_user.monthly_reading_goal,
     }
 
 @router.patch("/me/preferences", name="update_preferences")
@@ -265,6 +244,10 @@ async def update_preferences(payload: UserPreferencesUpdateRequest, db: SessionD
 
     if payload.share_progress_enabled is not None:
         current_user.share_progress_enabled = payload.share_progress_enabled
+        have_settings_changed = True
+
+    if payload.monthly_reading_goal is not None:
+        current_user.monthly_reading_goal = payload.monthly_reading_goal
         have_settings_changed = True
 
     if have_settings_changed:
@@ -295,6 +278,24 @@ async def update_password(
     db.commit()
 
     return {"status": "success", "message": "Password updated successfully"}
+
+
+
+@router.get("/me/year-in-review", name="year_in_review")
+async def get_year_in_review(
+        service: Annotated[StatisticsService, Depends(get_stats_service)],
+        year: Optional[int] = None
+):
+    """
+    Generate a comprehensive Year in Review summary
+    Similar to Spotify Wrapped for comic reading
+    """
+
+    # Default to current year if not specified
+    if year is None:
+        year = datetime.now(timezone.utc).year
+
+    return service.get_year_wrapped(year)
 
 # 1. List Users
 @router.get("/", response_model=PaginatedResponse, tags=["admin"], name="list")

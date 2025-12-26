@@ -9,7 +9,7 @@ from app.models import (Comic, Volume, Series,
                         PullList, PullListItem,
                         Library, User)
 
-from app.core.comic_helpers import get_series_age_restriction
+from app.core.comic_helpers import get_series_age_restriction, get_thumbnail_url
 from app.schemas.search import SearchRequest, SearchFilter
 
 
@@ -460,6 +460,6 @@ class SearchService:
             "year": comic.year,
             "publisher": comic.publisher,
             "format": comic.format,
-            "thumbnail_path": f"/api/comics/{comic.id}/thumbnail",
+            "thumbnail_path": get_thumbnail_url(comic.id, comic.updated_at),
             "community_rating": comic.community_rating
         }

@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime, timezone
 from functools import lru_cache
 from sqlalchemy import func, or_, not_, case, cast, Float
 from typing import Any
@@ -382,3 +383,12 @@ def get_aggregated_metadata(
     query = query.filter(context_filter_col == context_id)
 
     return sorted([r[0] for r in query.distinct().all()])
+
+def get_thumbnail_url(comic_id: int, updated_at: datetime) -> str:
+    """Standardized thumbnail URL with cache-busting version string"""
+    version = get_thumbnail_hash(updated_at)
+    return f"/api/comics/{comic_id}/thumbnail?v={version}" # TODO: make relative url (no leading /) and let frontend decide base url
+
+def get_thumbnail_hash(updated_at: datetime) -> int:
+    version = int(updated_at.timestamp()) if updated_at else 0
+    return version
