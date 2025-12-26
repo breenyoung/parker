@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from collections import defaultdict
 
 from app.core.comic_helpers import (get_format_filters, get_smart_cover, get_reading_time,
+                                    get_thumbnail_url, get_thumbnail_hash,
                                     NON_PLAIN_FORMATS, REVERSE_NUMBERING_SERIES,
                                     get_series_age_restriction, get_banned_comic_condition)
 from app.api.deps import SessionDep, CurrentUser, AdminUser, SeriesDep
@@ -36,7 +37,7 @@ def comic_to_simple_dict(comic: Comic):
         "year": comic.year,
         "format": comic.format,
         "filename": comic.filename,
-        "thumbnail_path": f"/api/comics/{comic.id}/thumbnail"
+        "thumbnail_path": get_thumbnail_url(comic.id, comic.updated_at)
     }
 
 
@@ -55,6 +56,7 @@ def bulk_serialize_series(series_list: List[Series], db, current_user) -> List[d
             Comic.number,
             Comic.year,
             Comic.format,
+            Comic.updated_at,
             Volume.series_id
         )
         .join(Volume)
@@ -128,7 +130,7 @@ def bulk_serialize_series(series_list: List[Series], db, current_user) -> List[d
         results.append({
             "id": s.id, "name": s.name,
             "start_year": cover.year if cover else None,
-            "thumbnail_path": f"/api/comics/{cover.id}/thumbnail" if cover else None,
+            "thumbnail_path": get_thumbnail_url(cover.id, cover.updated_at) if cover else None,
             "read": read_status_map.get(s.id, False)
         })
 
@@ -297,7 +299,7 @@ async def get_series_detail(series: SeriesDep, db: SessionDep, current_user: Cur
 
     # B. Volume Covers (First Issue per Volume)
     # Fetch ALL comics meta for smart selection (Lightweight query)
-    all_comics_meta = (db.query(Comic.id, Comic.volume_id, Comic.number, Comic.format)
+    all_comics_meta = (db.query(Comic.id, Comic.volume_id, Comic.number, Comic.format, Comic.updated_at)
                        .filter(Comic.volume_id.in_(volume_ids)).all())
 
     # Group by Volume
@@ -329,6 +331,7 @@ async def get_series_detail(series: SeriesDep, db: SessionDep, current_user: Cur
         # SMART COVER LOGIC
         v_comics = volume_comics_map.get(vol.id, [])
         cover_id = None
+        cover_hash = None
 
         if v_comics:
             # 1. Prefer Standards
@@ -344,6 +347,7 @@ async def get_series_detail(series: SeriesDep, db: SessionDep, current_user: Cur
 
             if issue_ones:
                 cover_id = issue_ones[0].id
+                cover_hash = get_thumbnail_hash(issue_ones[0].updated_at)
             else:
                 # 3. Sort by Lowest Number
                 pool.sort(key=issue_sort_key)
@@ -353,14 +357,17 @@ async def get_series_detail(series: SeriesDep, db: SessionDep, current_user: Cur
                     # Take the HIGHEST number (Last item)
                     # e.g. Countdown #51
                     cover_id = pool[-1].id
+                    cover_hash = get_thumbnail_hash(pool[-1].updated_at)
                 else:
                     # Take the LOWEST number (First item)
                     # e.g. Amazing Spider-Man #10
                     cover_id = pool[0].id
+                    cover_hash = get_thumbnail_hash(pool[0].updated_at)
 
         volumes_data.append({
             "volume_id": vol.id, "volume_number": vol.volume_number,
             "first_issue_id": cover_id, # Replaces the SQL window function result
+            "thumbnail_hash": cover_hash,
             "issue_count": count, "read": (count > 0 and read_count >= count)
         })
 
@@ -385,6 +392,7 @@ async def get_series_detail(series: SeriesDep, db: SessionDep, current_user: Cur
         "resume_to": {"comic_id": resume_comic_id, "status": read_status},
         "colors": colors, "is_admin": current_user.is_superuser,
         "is_reverse_numbering": is_reverse_series,
+        "thumbnail_hash": get_thumbnail_hash(first_issue.updated_at),
     }
 
 

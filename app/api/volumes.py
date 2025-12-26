@@ -5,7 +5,7 @@ from sqlalchemy.orm import joinedload
 from typing import List, Annotated
 
 from app.core.comic_helpers import (get_format_filters, get_smart_cover, get_reading_time,
-                                    REVERSE_NUMBERING_SERIES, get_age_rating_config)
+                                    REVERSE_NUMBERING_SERIES, get_age_rating_config, get_thumbnail_url)
 
 from app.api.deps import SessionDep, CurrentUser, VolumeDep
 from app.api.deps import PaginationParams, PaginatedResponse
@@ -28,7 +28,7 @@ def comic_to_simple_dict(comic: Comic):
         "year": comic.year,
         "format": comic.format,
         "filename": comic.filename,
-        "thumbnail_path": f"/api/comics/{comic.id}/thumbnail" # TODO: make relative url (no leading /) and let frontend decide base url
+        "thumbnail_path": get_thumbnail_url(comic.id, comic.updated_at)
     }
 
 

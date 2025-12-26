@@ -11,7 +11,7 @@ from app.models.reading_progress import ReadingProgress
 from app.models.comic import Comic, Volume
 from app.models.series import Series
 from app.services.reading_progress import ReadingProgressService
-from app.core.comic_helpers import get_series_age_restriction
+from app.core.comic_helpers import get_series_age_restriction, get_thumbnail_url
 
 router = APIRouter()
 
@@ -76,7 +76,7 @@ async def get_on_deck_progress(
             "number": comic.number,
             "volume_number": comic.volume.volume_number,
             "percentage": p.progress_percentage,
-            "thumbnail": f"/api/comics/{comic.id}/thumbnail",
+            "thumbnail": get_thumbnail_url(comic.id, comic.updated_at),
             "last_read": p.last_read_at
         })
 
@@ -244,7 +244,7 @@ async def get_recent_progress(
             "number": comic.number,
             "title": comic.title,
             "filename": comic.filename,
-            "thumbnail_path": f"/api/comics/{comic.id}/thumbnail",
+            "thumbnail_path": get_thumbnail_url(comic.id, comic.updated_at),
             "current_page": progress.current_page,
             "total_pages": progress.total_pages,
             "progress_percentage": progress.progress_percentage,

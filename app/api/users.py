@@ -12,7 +12,7 @@ from sqlalchemy import func, not_, and_
 
 from app.api.deps import SessionDep, AdminUser, CurrentUser, PaginatedResponse, PaginationParams
 from app.config import settings
-from app.core.comic_helpers import get_reading_time, get_banned_comic_condition, get_series_age_restriction
+from app.core.comic_helpers import get_thumbnail_url, get_banned_comic_condition, get_series_age_restriction
 from app.core.security import verify_password, get_password_hash
 from app.models.comic import Comic, Volume
 from app.models.user import User
@@ -145,7 +145,7 @@ async def get_user_dashboard(db: SessionDep, current_user: CurrentUser):
             "series_name": p.comic.volume.series.name,
             "number": p.comic.number,
             "percentage": p.progress_percentage,
-            "thumbnail": f"/api/comics/{p.comic.id}/thumbnail"
+            "thumbnail": get_thumbnail_url(p.comic.id, p.comic.updated_at)
         }
         for p in recent_progress
     ]
