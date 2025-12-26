@@ -286,7 +286,10 @@ class LibraryScanner:
             count=int(metadata.get('count')) if metadata.get('count') else None,
 
             # Full metadata
-            metadata_json=json.dumps(metadata.get('raw_metadata', {}))
+            metadata_json=json.dumps(metadata.get('raw_metadata', {})),
+
+            is_dirty=True # Mark for thumbnailer / services
+
         )
 
         self.db.add(comic)
@@ -381,6 +384,7 @@ class LibraryScanner:
         comic.count = int(metadata.get('count')) if metadata.get('count') else None
         comic.metadata_json = json.dumps(metadata.get('raw_metadata', {}))
         comic.updated_at = datetime.now(timezone.utc)
+        comic.is_dirty = True # Mark for thumbnailer / services
 
         # Update credits
         self.credit_service.add_credits_to_comic(comic, metadata)
@@ -494,23 +498,6 @@ class LibraryScanner:
 
         self.volume_cache[cache_key] = volume
         return volume
-
-    def _generate_thumbnail(self, comic: Comic) -> None:
-        try:
-            storage_path = Path("./storage/cover")
-            thumbnail_filename = f"comic_{comic.id}.webp"
-            target_path = storage_path / thumbnail_filename
-
-            # Use service to generate and save directly to target
-            success = self.image_service.generate_thumbnail(comic.file_path, target_path)
-
-            if success:
-                comic.thumbnail_path = str(target_path)
-                # Note: No commit needed here as batch loop handles it,
-                # or flush() in import_comic handles the object state.
-
-        except Exception as e:
-            print(f"Failed to generate thumbnail for {comic.filename}: {e}")
 
     def _normalize_number(self, number: str) -> str:
         """Normalize weird comic numbers"""
