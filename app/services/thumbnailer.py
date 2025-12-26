@@ -222,7 +222,7 @@ class ThumbnailService:
             has_thumb = comic.thumbnail_path and Path(str(comic.thumbnail_path)).exists()
             has_colors = comic.color_primary is not None
 
-            if not force and has_thumb and has_colors:
+            if not force and not comic.is_dirty and has_thumb and has_colors:
                 stats["skipped"] += 1
                 continue
 
