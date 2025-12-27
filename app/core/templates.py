@@ -36,6 +36,7 @@ templates.env.globals["url"] = url_builder
 templates.env.globals["base_url"] = settings.clean_base_url
 templates.env.globals["routes"] = route_map_injector
 templates.env.globals["get_system_setting"] = get_cached_setting
+templates.env.globals["background_style"] = get_cached_setting("ui.background_style")
 
 # --- Filters ---
 def slugify(value: str) -> str:
